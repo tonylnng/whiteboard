@@ -146,74 +146,9 @@ http://localhost:3502
 
 Register an account and start your first board! 🎉
 
----
-
-## 💻 Local Development
-
-Want to hack on the code? Here's how to run each service locally:
-
-### Backend (NestJS)
+### Updating
 
 ```bash
-cd server
-npm install
-npm run start:dev
-# API running at http://localhost:3000
-```
-
-### Frontend (React + Vite)
-
-```bash
-cd client
-npm install
-npm run dev
-# App running at http://localhost:5173
-```
-
-### Collab Server (Hocuspocus)
-
-```bash
-cd collab
-npm install
-npm run dev
-# WebSocket running at ws://localhost:1234
-```
-
-> **Tip:** For local dev, you still need PostgreSQL and Redis running. Use `docker compose up wb-postgres wb-redis -d` to start just those.
-
----
-
-## 🌐 Production Deployment
-
-### On a VPS (Ubuntu/Debian)
-
-```bash
-# SSH into your server
-ssh user@your-server-ip
-
-# Clone the repo
-git clone https://github.com/tonylnng/whiteboard.git
-cd whiteboard
-
-# Set up .env
-cp .env.example .env
-nano .env  # fill in your values
-
-# Build and start
-docker compose up -d --build
-
-# Set up Nginx reverse proxy (optional)
-# See nginx/whiteboard.conf for config
-```
-
-### Deploy updates
-
-```bash
-# On your local machine — make changes, then:
-git push origin main
-
-# On your server:
-cd /home/ubuntu/whiteboard
 git pull
 docker compose up -d --build
 ```
