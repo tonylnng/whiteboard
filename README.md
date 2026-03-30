@@ -18,7 +18,17 @@
 
 Your team has ideas. Whiteboard gets them out of everyone's heads and onto a shared canvas — in real time.
 
-Run a sprint planning session. Map out a system architecture. Facilitate a retro. Sketch a user flow. Vote on priorities. Whatever you're working through, Whiteboard gives your team a visual space to think together — and an AI that participates alongside you.
+Picture this: your team is scattered across three time zones. The designer opens a board, drops in a user flow. The engineer joins seconds later and starts annotating. The PM adds sticky notes. The AI clusters them by theme before anyone asks. Everyone sees every cursor move, every shape, every edit — live.
+
+That's Whiteboard. A shared visual space for teams who need to think together, not just talk together.
+
+**Built for:**
+- 🗂️ Sprint planning & backlog grooming
+- 🔄 Retrospectives & team health checks
+- 🏗️ System design & architecture diagrams
+- 💡 Brainstorming & ideation sessions
+- 🗺️ User journey & flow mapping
+- 📊 Decision making with dot voting
 
 Self-hosted, open, and built on [tldraw](https://tldraw.dev).
 
