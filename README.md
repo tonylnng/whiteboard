@@ -26,7 +26,7 @@ Draw, brainstorm, plan sprints, run retros — all in real-time with your team. 
 |---------|-------------|
 | 🎨 **Infinite Canvas** | tldraw-powered canvas with shapes, text, arrows, images |
 | 👥 **Real-time Collaboration** | Live cursors, instant sync across all users |
-| 🤖 **AI Sidekick** | Generate stickies, summarize boards, auto-layout — powered by Claude |
+| 🤖 **AI Sidekick** | Generate stickies, summarize boards, auto-layout — works with any LLM via OpenRouter |
 | 📋 **18 Templates** | HMW, SWOT, Retrospectives, PI Planning, OKR, Lean Canvas & more |
 | 🗳️ **Dot Voting** | Facilitate decisions with visual vote badges + result charts |
 | 🔷 **Shape Library** | 34 shapes across Flowchart, BPMN, ERD, Network, Wireframe categories |
@@ -69,8 +69,8 @@ whiteboard/
 - [Hocuspocus](https://hocuspocus.dev) — collaborative document sync
 
 **AI**
-- [OpenRouter](https://openrouter.ai) — LLM gateway
-- Claude Sonnet 4.6 — default model for all AI features
+- [OpenRouter](https://openrouter.ai) — LLM gateway (supports 100+ models)
+- Bring your own model — set `AI_DEFAULT_MODEL` in `.env` to any model available on OpenRouter (e.g. GPT-4o, Gemini, Mistral, Llama, Claude, etc.)
 
 **Infrastructure**
 - [Docker](https://docker.com) + Docker Compose
@@ -117,9 +117,9 @@ REDIS_PASSWORD=your_redis_password
 JWT_SECRET=your_super_secret_jwt_key
 JWT_REFRESH_SECRET=your_refresh_secret
 
-# AI (get your key from openrouter.ai)
+# AI (get your key from openrouter.ai — supports GPT-4o, Gemini, Claude, Mistral, Llama & more)
 OPENROUTER_API_KEY=sk-or-...
-AI_DEFAULT_MODEL=anthropic/claude-sonnet-4.6
+AI_DEFAULT_MODEL=openai/gpt-4o   # change to any model on openrouter.ai/models
 
 # App URL
 APP_URL=http://localhost:3502
@@ -271,9 +271,9 @@ All AI features use the `/api/ai` endpoint via OpenRouter. Supported operations:
 | `REDIS_*` | ✅ | Redis connection + password |
 | `JWT_SECRET` | ✅ | JWT signing secret |
 | `JWT_REFRESH_SECRET` | ✅ | Refresh token secret |
-| `OPENROUTER_API_KEY` | ✅ | AI features (get from openrouter.ai) |
+| `OPENROUTER_API_KEY` | ✅ | AI features — get a key at [openrouter.ai](https://openrouter.ai) |
 | `APP_URL` | ✅ | Public URL of the app |
-| `AI_DEFAULT_MODEL` | ⚙️ | Default: `anthropic/claude-sonnet-4.6` |
+| `AI_DEFAULT_MODEL` | ⚙️ | Any model slug from [openrouter.ai/models](https://openrouter.ai/models) |
 | `AI_TEMPERATURE` | ⚙️ | Default: `0.7` |
 | `MINIO_*` | ⚙️ | File storage (optional) |
 
