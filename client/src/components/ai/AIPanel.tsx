@@ -68,6 +68,24 @@ function executeActions(editor: Editor, actions: any[], getCenter: () => { x: nu
           count++
           break
         }
+        case 'update_shape': {
+          const s = editor.getShape(p.id as any) as any
+          if (s) {
+            const updates: any = { id: s.id, type: s.type }
+            if (p.x !== undefined || p.y !== undefined) {
+              updates.x = p.x ?? s.x
+              updates.y = p.y ?? s.y
+            }
+            if (p.color !== undefined || p.text !== undefined) {
+              updates.props = { ...s.props }
+              if (p.color !== undefined) updates.props.color = safeColor(p.color)
+              if (p.text !== undefined) updates.props.richText = toRichText(p.text)
+            }
+            editor.updateShape(updates)
+            count++
+          }
+          break
+        }
         case 'move_shape': {
           const s = editor.getShape(p.id as any)
           if (s) { editor.updateShape({ ...s, x: p.x, y: p.y }); count++ }
@@ -146,7 +164,17 @@ export default function AIPanel({ editor, boardId, onSave }: Props) {
     if (!editor) return []
     return [...editor.getCurrentPageShapeIds()].map(id => {
       const s = editor.getShape(id) as any
-      return { id, type: s?.type || 'shape', text: s?.props?.text || '', x: s?.x || 0, y: s?.y || 0 }
+      // tldraw note shapes use richText, not text
+      const richText = s?.props?.richText
+      let text = s?.props?.text || ''
+      if (!text && richText) {
+        try {
+          // richText is a TLRichText object; extract plain text
+          const segments = richText?.paragraphs?.flatMap((p: any) => p.children?.map((c: any) => c.text || '') || []) || []
+          text = segments.join(' ').trim()
+        } catch {}
+      }
+      return { id, type: s?.type || 'shape', text, color: s?.props?.color || '', x: s?.x || 0, y: s?.y || 0, width: s?.props?.w || 200, height: s?.props?.h || 120 }
     })
   }
 

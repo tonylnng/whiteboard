@@ -28,18 +28,20 @@ Actions:
 - create_sticky: {"type":"create_sticky","params":{"x":N,"y":N,"width":200,"height":120,"text":"ACTUAL CONTENT HERE","color":"yellow"}}
 - create_text: {"type":"create_text","params":{"x":N,"y":N,"text":"ACTUAL CONTENT HERE","fontSize":"m"}}
 - create_shape: {"type":"create_shape","params":{"x":N,"y":N,"type":"rectangle","width":160,"height":80,"text":"label","color":"blue"}}
+- update_shape: {"type":"update_shape","params":{"id":"ID","color":"yellow"}} — use this to change color or text of EXISTING shapes, DO NOT delete+recreate
 - move_shape: {"type":"move_shape","params":{"id":"ID","x":N,"y":N}}
 - delete_shape: {"type":"delete_shape","params":{"id":"ID"}}
 
 RULES:
-1. Always put meaningful text in the "text" field - never leave it empty
-2. Place shapes near viewport center (${cx}, ${cy})
-3. For 3 items in a row: x = ${cx-230}, ${cx}, ${cx+230}, same y = ${cy}
-4. For 3 items in a column: same x = ${cx}, y = ${cy-150}, ${cy}, ${cy+150}
-5. Valid colors: yellow, green, blue, orange, violet, light-red, light-blue, light-green
+1. To change color of existing shapes: use update_shape with the shape's id and new color — NEVER delete and recreate
+2. Always put meaningful text in the "text" field - never leave it empty when creating
+3. Place shapes near viewport center (${cx}, ${cy})
+4. For 3 items in a row: x = ${cx-230}, ${cx}, ${cx+230}, same y = ${cy}
+5. For 3 items in a column: same x = ${cx}, y = ${cy-150}, ${cy}, ${cy+150}
+6. Valid colors: yellow, green, blue, orange, violet, light-red, light-blue, light-green
 
 Canvas has ${shapes.length} shapes:
-${shapes.slice(0, 15).map((s: any) => `  [${s.id}] ${s.type} "${s.text||''}" at(${s.x},${s.y})`).join('\n') || '  (empty)'}`;
+${shapes.slice(0, 20).map((s: any) => `  [${s.id}] ${s.type} color=${s.color||'?'} "${s.text||''}" at(${s.x},${s.y})`).join('\n') || '  (empty)'}`;
 
     const messages: LLMMessage[] = [
       { role: 'system', content: systemPrompt },
