@@ -33,7 +33,9 @@ export class LlmGatewayService {
       max_tokens: options.maxTokens ?? 4096,
     };
 
-    if (options.responseFormat === 'json_object') {
+    // MiniMax models do not support response_format parameter
+    const isMinimaxModel = model.toLowerCase().includes('minimax');
+    if (options.responseFormat === 'json_object' && !isMinimaxModel) {
       body.response_format = { type: 'json_object' };
     }
 
