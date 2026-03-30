@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  wb-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: wb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - wb_postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5434:5432"
+    networks:
+      - tpms_tpms-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wb-redis:
+    image: redis:7-alpine
+    container_name: wb-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - wb_redis_data:/data
+    ports:
+      - "127.0.0.1:6382:6379"
+    networks:
+      - tpms_tpms-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wb-app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: wb-app
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:3500:3000"
+    networks:
+      - tpms_tpms-net
+    depends_on:
+      wb-postgres:
+        condition: service_healthy
+      wb-redis:
+        condition: service_healthy
+
+  wb-hocuspocus:
+    build:
+      context: ./collab
+      dockerfile: Dockerfile
+    container_name: wb-hocuspocus
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:3501:1234"
+    networks:
+      - tpms_tpms-net
+    depends_on:
+      wb-postgres:
+        condition: service_healthy
+      wb-redis:
+        condition: service_healthy
+
+  wb-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: wb-client
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3502:80"
+    networks:
+      - tpms_tpms-net
+    depends_on:
+      - wb-app
+
+networks:
+  tpms_tpms-net:
+    external: true
+
+volumes:
+  wb_postgres_data:
+  wb_redis_data:

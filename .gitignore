@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Environment files (keep .env.example if exists)
+.env
+*.env.local
+*.env.production
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+
+# Docker volumes
+wb_postgres_data/
+wb_redis_data/
