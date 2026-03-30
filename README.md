@@ -26,7 +26,6 @@ Draw, brainstorm, plan sprints, run retros — all in real-time with your team. 
 |---------|-------------|
 | 🎨 **Infinite Canvas** | tldraw-powered canvas with shapes, text, arrows, images |
 | 👥 **Real-time Collaboration** | Live cursors, instant sync across all users |
-| 🤖 **AI Sidekick** | Generate stickies, summarize boards, auto-layout — works with any LLM via OpenRouter |
 | 📋 **18 Templates** | HMW, SWOT, Retrospectives, PI Planning, OKR, Lean Canvas & more |
 | 🗳️ **Dot Voting** | Facilitate decisions with visual vote badges + result charts |
 | 🔷 **Shape Library** | 34 shapes across Flowchart, BPMN, ERD, Network, Wireframe categories |
@@ -34,6 +33,21 @@ Draw, brainstorm, plan sprints, run retros — all in real-time with your team. 
 | ⏱️ **Brainstorm Toolbar** | Timer, anonymous mode, facilitator tools |
 | 🔗 **Guest Access** | Share boards via link — no account needed |
 | 📁 **Board Management** | Folders, dashboards, board CRUD |
+
+### 🤖 AI Features
+
+Powered by [OpenRouter](https://openrouter.ai) — bring your own model (GPT-4o, Gemini, Claude, Mistral, Llama & more).
+
+| Feature | Description |
+|---------|-------------|
+| ✨ **Generate Stickies** | Create sticky notes from a topic instantly |
+| 🧠 **Canvas Agent** | Intelligent shape placement and arrangement |
+| 📝 **Board Summary** | Summarize all content on the board |
+| 🔀 **Auto Layout** | Rearrange shapes intelligently |
+| ✍️ **Text Assistant** | Improve or rewrite text on canvas |
+| 📊 **Text to Diagram** | Convert text descriptions to diagrams |
+| 🔗 **Smart Connect** | Auto-connect related shapes |
+| 🗂️ **Sticky Cluster** | Group similar stickies automatically |
 
 ---
 
@@ -178,23 +192,6 @@ client/src/
 ├── pages/               # Route pages (Dashboard, Board, Login, Register)
 └── lib/                 # API client, shape library config
 ```
-
----
-
-## 🤖 AI Features
-
-All AI features use the `/api/ai` endpoint via OpenRouter. Supported operations:
-
-| Feature | Endpoint | Description |
-|---------|----------|-------------|
-| Generate Stickies | `POST /ai/generate-stickies` | Create sticky notes from a topic |
-| Canvas Agent | `POST /ai/canvas-agent` | Intelligent shape placement |
-| Board Summary | `POST /ai/board-summary` | Summarize all content on the board |
-| Auto Layout | `POST /ai/auto-layout` | Rearrange shapes intelligently |
-| Text Assistant | `POST /ai/text-assistant` | Improve/rewrite text on canvas |
-| Text to Diagram | `POST /ai/text-to-diagram` | Convert text descriptions to diagrams |
-| Smart Connect | `POST /ai/smart-connect` | Auto-connect related shapes |
-| Sticky Cluster | `POST /ai/sticky-cluster` | Group similar stickies |
 
 ---
 
