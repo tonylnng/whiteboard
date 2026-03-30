@@ -4,7 +4,7 @@
 
 **A powerful, open whiteboard platform built for teams who think visually.**
 
-[Live Demo](https://whiteboard.toniclab.ai) · [Report Bug](https://github.com/tonylnng/whiteboard/issues) · [Request Feature](https://github.com/tonylnng/whiteboard/issues)
+[Report Bug](https://github.com/tonylnng/whiteboard/issues) · [Request Feature](https://github.com/tonylnng/whiteboard/issues)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node](https://img.shields.io/badge/node-20+-green.svg)
@@ -302,7 +302,7 @@ docker compose down -v && docker compose up -d --build
 
 ## 📄 License
 
-MIT © [Tonic](https://github.com/tonylnng)
+MIT
 
 ---
 
