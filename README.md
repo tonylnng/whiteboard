@@ -16,9 +16,11 @@
 
 ## ✨ What Is This?
 
-Whiteboard is a full-stack collaborative whiteboard platform — think Miro or FigJam, but self-hosted and AI-powered.
+Your team has ideas. Whiteboard gets them out of everyone's heads and onto a shared canvas — in real time.
 
-Draw, brainstorm, plan sprints, run retros — all in real-time with your team. Built on [tldraw](https://tldraw.dev), with an AI layer that actually helps you think.
+Run a sprint planning session. Map out a system architecture. Facilitate a retro. Sketch a user flow. Vote on priorities. Whatever you're working through, Whiteboard gives your team a visual space to think together — and an AI that participates alongside you.
+
+Self-hosted, open, and built on [tldraw](https://tldraw.dev).
 
 ### 🎯 Key Features
 
