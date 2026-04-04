@@ -15,6 +15,7 @@ interface Props {
   onSessionUpdate: (state: Partial<SessionState>) => void
   voteMap: Record<string, number>
   myVotesRemaining: number
+  boardType?: string
 }
 
 interface SessionState {
@@ -565,7 +566,7 @@ function TimerDisplay({ endTime, onStop, isFacilitator }: { endTime: number; onS
     </>
   )
 }
-export default function BrainstormToolbar({ editor, socket, isFacilitator, sessionState, onSessionUpdate, voteMap, myVotesRemaining }: Props) {
+export default function BrainstormToolbar({ editor, socket, isFacilitator, sessionState, onSessionUpdate, voteMap, myVotesRemaining, boardType }: Props) {
   const [showTemplates, setShowTemplates] = useState(false)
   const [showTimer, setShowTimer] = useState(false)
   const [timerMinutes, setTimerMinutes] = useState(5)
@@ -752,55 +753,71 @@ export default function BrainstormToolbar({ editor, socket, isFacilitator, sessi
           </div>
         ) : null}
 
-        {/* Templates */}
+        {/* Templates - tldraw only */}
         <div className="relative">
-          <button onClick={() => setShowTemplates(v => !v)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg border border-gray-200 transition-colors">
-            <LayoutTemplate size={13} /> 模板
-          </button>
-          {showTemplates && (
-            <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
-              <div className="px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
-                <p className="text-xs font-semibold text-gray-500 mb-2">選擇模板</p>
-                <div className="flex gap-1 flex-wrap">
-                  {[
-                    { id: 'all', label: '全部', emoji: '📋' },
-                    { id: 'brainstorm', label: '腦暴', emoji: '💡' },
-                    { id: 'retro', label: '回顧', emoji: '🔄' },
-                    { id: 'agile', label: 'Agile', emoji: '🚂' },
-                    { id: 'strategy', label: '策略', emoji: '🎯' },
-                    { id: 'design', label: '設計', emoji: '❤️' },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setTemplateTab(tab.id)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                        templateTab === tab.id
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span>{tab.emoji}</span>
-                      {tab.label}
-                    </button>
-                  ))}
+          {boardType === 'excalidraw' ? (
+            <div className="relative group">
+              <button disabled
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-300 border border-gray-200 rounded-lg cursor-not-allowed">
+                <LayoutTemplate size={13} /> 模板
+              </button>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-50">
+                <div className="bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                  草圖模式不支援模板
                 </div>
               </div>
-              <div className="overflow-y-auto flex-1 p-1.5">
-                {TEMPLATES.filter(t => templateTab === 'all' || (t as any).category === templateTab).map(t => (
-                  <button key={t.id} onClick={() => loadTemplate(t)}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-purple-50 transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl shrink-0">{t.icon}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-700 truncate">{t.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{t.description}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
+          ) : (
+            <>
+              <button onClick={() => setShowTemplates(v => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg border border-gray-200 transition-colors">
+                <LayoutTemplate size={13} /> 模板
+              </button>
+              {showTemplates && (
+                <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
+                  <div className="px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">選擇模板</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {[
+                        { id: 'all', label: '全部', emoji: '📋' },
+                        { id: 'brainstorm', label: '腦暴', emoji: '💡' },
+                        { id: 'retro', label: '回顧', emoji: '🔄' },
+                        { id: 'agile', label: 'Agile', emoji: '🚂' },
+                        { id: 'strategy', label: '策略', emoji: '🎯' },
+                        { id: 'design', label: '設計', emoji: '❤️' },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setTemplateTab(tab.id)}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            templateTab === tab.id
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>{tab.emoji}</span>
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-1.5">
+                    {TEMPLATES.filter(t => templateTab === 'all' || (t as any).category === templateTab).map(t => (
+                      <button key={t.id} onClick={() => loadTemplate(t)}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-purple-50 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl shrink-0">{t.icon}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-700 truncate">{t.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{t.description}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

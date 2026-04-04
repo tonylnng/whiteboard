@@ -241,6 +241,7 @@ export default function BoardPage() {
             onSessionUpdate={() => {}}
             voteMap={voteMap}
             myVotesRemaining={myVotesRemaining}
+            boardType={boardType}
           />
         </div>
 
