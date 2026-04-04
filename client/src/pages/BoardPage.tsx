@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Tldraw, Editor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { lazy, Suspense } from 'react'
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw'
+// ExcalidrawImperativeAPI type - using any for compatibility with @excalidraw/excalidraw v0.18
+type ExcalidrawImperativeAPI = any
 
 const ExcalidrawBoard = lazy(() => import('../components/board/ExcalidrawBoard'))
 import { ArrowLeft, Download, Sparkles, X, Users, Check, Pencil } from 'lucide-react'
