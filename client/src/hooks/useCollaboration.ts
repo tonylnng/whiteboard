@@ -42,6 +42,13 @@ export function useCollaboration(boardId: string, accessToken: string | null, us
   const excalidrawApiRef = useRef(excalidrawApi)
   excalidrawApiRef.current = excalidrawApi
 
+  // Track whether an update came from a remote patch (to avoid echo)
+  const applyingRemoteRef = useRef(false)
+  // Debounce timer for outgoing patches
+  const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Last elements we sent, to avoid sending unchanged data
+  const lastSentRef = useRef<string>('')
+
   useEffect(() => {
     if (!boardId || !accessToken) return
 
@@ -82,6 +89,32 @@ export function useCollaboration(boardId: string, accessToken: string | null, us
 
     socket.on('cursor:move', ({ socketId, x, y, name, color }: any) => {
       setRemoteUsers(prev => prev.map(u => u.socketId === socketId ? { ...u, cursor: { x, y } } : u))
+    })
+
+    // ─── Real-time canvas sync ──────────────────────────────────────────────
+    socket.on('store:patch', ({ patch }: { socketId: string; patch: { elements: any[] } }) => {
+      const api = excalidrawApiRef.current
+      if (!api || !patch?.elements?.length) return
+      try {
+        applyingRemoteRef.current = true
+        // Merge remote elements with current scene
+        const currentElements = api.getSceneElements() as any[]
+        const elementMap = new Map<string, any>()
+        for (const el of currentElements) elementMap.set(el.id, el)
+        for (const el of patch.elements) {
+          const existing = elementMap.get(el.id)
+          // Only apply if remote version is newer (or element is new)
+          if (!existing || (el.version ?? 0) >= (existing.version ?? 0)) {
+            elementMap.set(el.id, el)
+          }
+        }
+        api.updateScene({ elements: Array.from(elementMap.values()) })
+      } catch (e) {
+        console.error('[Collab] Failed to apply remote patch:', e)
+      } finally {
+        // Reset flag after Excalidraw finishes processing the update
+        setTimeout(() => { applyingRemoteRef.current = false }, 0)
+      }
     })
 
     // Voting events
@@ -134,13 +167,13 @@ export function useCollaboration(boardId: string, accessToken: string | null, us
       toast.info(locked ? '🔒 游標已鎖定' : '🔓 游標已解鎖')
     })
     socket.on('facilitator:spotlight', () => {
-      // Scroll to fit content in Excalidraw
       try {
         excalidrawApiRef.current?.scrollToContent()
       } catch {}
     })
 
     return () => {
+      if (patchTimerRef.current) clearTimeout(patchTimerRef.current)
       socket.disconnect()
       socketRef.current = null
       setSocketState(null)
@@ -154,6 +187,23 @@ export function useCollaboration(boardId: string, accessToken: string | null, us
     socketRef.current?.emit('cursor:move', { x, y })
   }, [])
 
+  // Called from BoardPage onChange — debounced, skips echo from remote patches
+  const broadcastElements = useCallback((elements: readonly any[]) => {
+    if (applyingRemoteRef.current) return
+    const socket = socketRef.current
+    if (!socket?.connected) return
+
+    // Only send changed elements (compare serialized to last sent)
+    const serialized = JSON.stringify(elements.map(e => ({ id: e.id, version: e.version })))
+    if (serialized === lastSentRef.current) return
+    lastSentRef.current = serialized
+
+    if (patchTimerRef.current) clearTimeout(patchTimerRef.current)
+    patchTimerRef.current = setTimeout(() => {
+      socket.emit('store:patch', { patch: { elements } })
+    }, 50) // 50ms debounce — fast enough for real-time feel
+  }, [])
+
   const castVote = useCallback((shapeId: string) => {
     socketRef.current?.emit('vote:cast', { shapeId })
   }, [])
@@ -165,7 +215,7 @@ export function useCollaboration(boardId: string, accessToken: string | null, us
   return {
     remoteUsers, connected, isFacilitator,
     sessionState, voteMap,
-    sendCursor, castVote, removeVote,
+    sendCursor, broadcastElements, castVote, removeVote,
     socket: socketState,
   }
 }

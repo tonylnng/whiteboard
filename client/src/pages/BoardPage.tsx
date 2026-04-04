@@ -32,7 +32,7 @@ export default function BoardPage() {
   const saveTimerRef = useRef<any>(null)
   const isSavingRef = useRef(false)
 
-  const { remoteUsers, sendCursor, isFacilitator, sessionState, voteMap, castVote, removeVote, socket } = useCollaboration(
+  const { remoteUsers, sendCursor, broadcastElements, isFacilitator, sessionState, voteMap, castVote, removeVote, socket } = useCollaboration(
     id || '', accessToken, user?.id, excalidrawApi
   )
 
@@ -219,6 +219,8 @@ export default function BoardPage() {
                 setSaveStatus('unsaved')
                 clearTimeout(saveTimerRef.current)
                 saveTimerRef.current = setTimeout(doSave, 3000)
+                // Broadcast changes to collaborators in real-time
+                broadcastElements(elements)
               }}
             />
           </Suspense>
