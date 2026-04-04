@@ -63,16 +63,20 @@ export default function VoteResultsPopup({ excalidrawApi, voteMap, onClose }: Pr
       const newElements: any[] = []
       // Background
       newElements.push(mkEl({ type: 'rectangle', x: cx - w / 2, y: cy - h / 2, width: w, height: h, backgroundColor: '#fffbeb', strokeColor: '#f59e0b', strokeWidth: 2 }))
+      // Helper for compliant text elements
+      const mkTxt = (x: number, y: number, width: number, text: string, fontSize: number, color: string, align: 'left' | 'center' | 'right' = 'left') =>
+        mkEl({ type: 'text', x, y, width, height: Math.ceil(fontSize * 1.25), text, originalText: text, fontSize, fontFamily: 1, textAlign: align, verticalAlign: 'top', baseline: Math.ceil(fontSize * 0.8), containerId: null, autoResize: true, lineHeight: 1.25, strokeColor: color, backgroundColor: 'transparent' })
       // Title
-      newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 20, y: cy - h / 2 + 14, width: w - 40, height: 30, text: `🏆 Vote Results — Total: ${totalVotes} votes`, fontSize: 18, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 14, strokeColor: '#1f2937' }))
+      newElements.push(mkTxt(cx - w / 2 + 20, cy - h / 2 + 14, w - 40, `🏆 Vote Results — Total: ${totalVotes} votes`, 18, '#1f2937'))
       // Bars
       data.forEach((item, i) => {
         const barMaxW = w - 200
         const barW = Math.max(4, (item.votes / maxVotes) * barMaxW)
         const y = cy - h / 2 + 60 + i * 44
+        const label = `${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`} ${item.name}`
         newElements.push(mkEl({ type: 'rectangle', x: cx - w / 2 + 160, y, width: barW, height: 30, backgroundColor: COLORS[i % COLORS.length], strokeColor: COLORS[i % COLORS.length] }))
-        newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 10, y: y + 6, width: 145, height: 20, text: `${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`} ${item.name}`, fontSize: 13, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 10, strokeColor: '#374151' }))
-        newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 165 + barW, y: y + 6, width: 60, height: 20, text: `${item.votes}`, fontSize: 13, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 10, strokeColor: '#374151' }))
+        newElements.push(mkTxt(cx - w / 2 + 10, y + 6, 145, label, 13, '#374151'))
+        newElements.push(mkTxt(cx - w / 2 + 165 + barW, y + 6, 60, `${item.votes}`, 13, '#374151'))
       })
 
       excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...newElements] })

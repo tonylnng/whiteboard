@@ -35,9 +35,11 @@ function mkRect(x: number, y: number, w: number, h: number, bg: string, stroke?:
 
 function mkText(x: number, y: number, w: number, text: string, fontSize = 13, color = '#374151', align: string = 'center') {
   return mkBase({
-    type: 'text', x, y, width: w, height: Math.ceil(fontSize * 1.4),
-    text, fontSize, fontFamily: 1,
+    type: 'text', x, y, width: w,
+    height: Math.ceil(fontSize * 1.25 * Math.max(1, (text.match(/\n/g) || []).length + 1)),
+    text, originalText: text, fontSize, fontFamily: 1,
     textAlign: align, verticalAlign: 'top', baseline: Math.ceil(fontSize * 0.8),
+    containerId: null, autoResize: true, lineHeight: 1.25,
     strokeColor: color, backgroundColor: 'transparent', fillStyle: 'hachure',
   })
 }
@@ -52,7 +54,9 @@ function createStickyElements(x: number, y: number, text: string, color: string)
   })
   const textEl = mkBase({
     type: 'text', x: x + 8, y: y + 10, width: 164, height: 100,
-    text, fontSize: 13, fontFamily: 1, textAlign: 'center', verticalAlign: 'top', baseline: 10,
+    text, originalText: text, fontSize: 13, fontFamily: 1,
+    textAlign: 'center', verticalAlign: 'top', baseline: 10,
+    containerId: null, autoResize: true, lineHeight: 1.25,
     strokeColor: '#374151', backgroundColor: 'transparent', fillStyle: 'hachure',
   })
   return [rect, textEl]

@@ -9,6 +9,7 @@ import api from '../lib/api'
 import { toast } from 'sonner'
 import AIPanel from '../components/ai/AIPanel'
 import RemoteCursors from '../components/board/RemoteCursors'
+import ExcalidrawErrorBoundary from '../components/board/ExcalidrawErrorBoundary'
 import MediaEmbed from '../components/board/MediaEmbed'
 import BrainstormToolbar from '../components/board/BrainstormToolbar'
 import { useCollaboration } from '../hooks/useCollaboration'
@@ -214,20 +215,22 @@ export default function BoardPage() {
 
       <div className="flex flex-1 overflow-hidden relative">
         <div className="flex-1 relative" onPointerMove={handlePointerMove}>
-          <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">載入白板...</div>}>
-            <ExcalidrawBoard
-              initialData={excalidrawInitialData}
-              onMount={setExcalidrawApi}
-              onChange={(elements, appState, files) => {
-                excalidrawDataRef.current = { elements: elements as any[], appState, files }
-                setSaveStatus('unsaved')
-                clearTimeout(saveTimerRef.current)
-                saveTimerRef.current = setTimeout(doSave, 3000)
-                // Broadcast changes to collaborators in real-time (editors only)
-                if (!isViewer) broadcastElements(elements)
-              }}
-            />
-          </Suspense>
+          <ExcalidrawErrorBoundary>
+            <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">載入白板...</div>}>
+              <ExcalidrawBoard
+                initialData={excalidrawInitialData}
+                onMount={setExcalidrawApi}
+                onChange={(elements, appState, files) => {
+                  excalidrawDataRef.current = { elements: elements as any[], appState, files }
+                  setSaveStatus('unsaved')
+                  clearTimeout(saveTimerRef.current)
+                  saveTimerRef.current = setTimeout(doSave, 3000)
+                  // Broadcast changes to collaborators in real-time (editors only)
+                  if (!isViewer) broadcastElements(elements)
+                }}
+              />
+            </Suspense>
+          </ExcalidrawErrorBoundary>
           <RemoteCursors excalidrawApi={excalidrawApi} socket={socket} />
           <VoteBadgeOverlay
             excalidrawApi={excalidrawApi}
