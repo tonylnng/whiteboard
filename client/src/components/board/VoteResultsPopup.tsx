@@ -57,7 +57,7 @@ export default function VoteResultsPopup({ excalidrawApi, voteMap, onClose }: Pr
         fillStyle: 'hachure' as const, strokeWidth: 1, strokeStyle: 'solid' as const,
         roughness: 0, opacity: 100, seed: Math.floor(Math.random() * 100000),
         versionNonce: Math.floor(Math.random() * 100000), version: 1, isDeleted: false,
-        boundElements: null, updated: now, locked: false, ...overrides,
+        boundElements: null, updated: now, locked: false, groupIds: [], frameId: null, link: null, ...overrides,
       })
 
       const newElements: any[] = []

@@ -47,6 +47,9 @@ function mkBase(overrides: Record<string, any>): any {
     boundElements: null,
     updated: Date.now(),
     locked: false,
+    groupIds: [],
+    frameId: null,
+    link: null,
     ...overrides,
   }
 }

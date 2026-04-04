@@ -25,6 +25,9 @@ function mkBase(overrides: any) {
     boundElements: null,
     updated: Date.now(),
     locked: false,
+    groupIds: [],
+    frameId: null,
+    link: null,
     ...overrides,
   }
 }
