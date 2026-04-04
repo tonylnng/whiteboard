@@ -44,8 +44,8 @@ export class LlmGatewayService {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://whiteboard.toniclab.ai',
-        'X-Title': 'Whiteboard Platform',
+        'HTTP-Referer': process.env.APP_URL || 'https://localhost',
+        'X-Title': process.env.APP_NAME || 'Whiteboard Platform',
       },
       body: JSON.stringify(body),
     });

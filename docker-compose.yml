@@ -15,7 +15,7 @@ services:
     ports:
       - "127.0.0.1:5434:5432"
     networks:
-      - tpms_tpms-net
+      - wb-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -37,7 +37,7 @@ services:
     ports:
       - "127.0.0.1:6382:6379"
     networks:
-      - tpms_tpms-net
+      - wb-net
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -54,7 +54,7 @@ services:
     ports:
       - "127.0.0.1:3500:3000"
     networks:
-      - tpms_tpms-net
+      - wb-net
     depends_on:
       wb-postgres:
         condition: service_healthy
@@ -71,7 +71,7 @@ services:
     ports:
       - "127.0.0.1:3501:1234"
     networks:
-      - tpms_tpms-net
+      - wb-net
     depends_on:
       wb-postgres:
         condition: service_healthy
@@ -87,13 +87,13 @@ services:
     ports:
       - "127.0.0.1:3502:80"
     networks:
-      - tpms_tpms-net
+      - wb-net
     depends_on:
       - wb-app
 
 networks:
-  tpms_tpms-net:
-    external: true
+  wb-net:
+    driver: bridge
 
 volumes:
   wb_postgres_data:
