@@ -34,10 +34,11 @@ function mkRect(x: number, y: number, w: number, h: number, bg: string, stroke?:
 }
 
 function mkText(x: number, y: number, w: number, text: string, fontSize = 13, color = '#374151', align: string = 'center') {
+  const safeText = text ?? ''
+  const lines = Math.max(1, (safeText.match(/\n/g) || []).length + 1)
   return mkBase({
-    type: 'text', x, y, width: w,
-    height: Math.ceil(fontSize * 1.25 * Math.max(1, (text.match(/\n/g) || []).length + 1)),
-    text, originalText: text, fontSize, fontFamily: 1,
+    type: 'text', x, y, width: w, height: Math.ceil(fontSize * 1.25 * lines),
+    text: safeText, originalText: safeText, fontSize, fontFamily: 1,
     textAlign: align, verticalAlign: 'top', baseline: Math.ceil(fontSize * 0.8),
     containerId: null, autoResize: true, lineHeight: 1.25,
     strokeColor: color, backgroundColor: 'transparent', fillStyle: 'hachure',
