@@ -52,13 +52,14 @@ export class AuthService {
       });
     }
 
-    // Issue JWT with isGuest flag in payload
-    const payload = { sub: guestId, name: guestName, isGuest: true, boardId: board.id };
+    const guestRole = board.sharePermission === 'editor' ? 'editor' : 'viewer';
+    // Include role in JWT so CollabGateway can enforce edit permissions
+    const payload = { sub: guestId, name: guestName, isGuest: true, boardId: board.id, role: guestRole };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '24h' });
 
     return {
       accessToken,
-      user: { id: guestId, name: guestName, isGuest: true },
+      user: { id: guestId, name: guestName, isGuest: true, role: guestRole },
       boardId: board.id,
     };
   }

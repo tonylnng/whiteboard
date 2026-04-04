@@ -16,6 +16,7 @@ interface UserInfo {
   color: string;
   boardId: string;
   isFacilitator?: boolean;
+  role?: string;
 }
 
 interface VoteState {
@@ -70,6 +71,7 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private users = new Map<string, UserInfo>();
   private sessions = new Map<string, SessionState>(); // boardId -> state
+  private boardElements = new Map<string, any[]>(); // boardId -> latest elements cache
 
   private getSession(boardId: string): SessionState {
     if (!this.sessions.has(boardId)) {
@@ -94,6 +96,7 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
         color: getColor(payload.sub),
         boardId,
         isFacilitator,
+        role: payload.role || (payload.isGuest ? 'viewer' : 'editor'),
       };
       
       if (isFacilitator) session.facilitatorId = payload.sub;
@@ -112,7 +115,13 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.emit('room:users', roomUsers);
       client.emit('session:state', session);
 
-      console.log(`[Collab] ${userInfo.name} joined ${boardId}${isFacilitator ? ' (facilitator)' : ''}`);
+      // Send cached live elements to new joiner (so they get unsaved changes too)
+      const cachedElements = this.boardElements.get(boardId);
+      if (cachedElements && cachedElements.length > 0) {
+        client.emit('store:patch', { socketId: 'server', patch: { elements: cachedElements } });
+      }
+
+      console.log(`[Collab] ${userInfo.name} joined ${boardId}${isFacilitator ? ' (facilitator)' : ''} role=${userInfo.role}`);
     } catch (e) {
       client.disconnect();
     }
@@ -137,6 +146,8 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (!transferred) {
           session.facilitatorId = null;
           this.sessions.delete(user.boardId);
+          // Clear element cache when room is empty
+          this.boardElements.delete(user.boardId);
         }
       }
       this.users.delete(client.id);
@@ -147,6 +158,23 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleStorePatch(@ConnectedSocket() client: Socket, @MessageBody() data: { patch: any }) {
     const user = this.users.get(client.id);
     if (!user) return;
+    // Only editors can send canvas changes
+    if (user.role === 'viewer') return;
+    if (!data.patch?.elements?.length) return;
+
+    // Update in-memory element cache (merge by version)
+    const existing = this.boardElements.get(user.boardId) || [];
+    const elementMap = new Map<string, any>();
+    for (const el of existing) elementMap.set(el.id, el);
+    for (const el of data.patch.elements) {
+      const cur = elementMap.get(el.id);
+      if (!cur || (el.version ?? 0) >= (cur.version ?? 0)) {
+        elementMap.set(el.id, el);
+      }
+    }
+    this.boardElements.set(user.boardId, Array.from(elementMap.values()));
+
+    // Relay to all other users in the room
     client.to(user.boardId).emit('store:patch', { socketId: client.id, patch: data.patch });
   }
 

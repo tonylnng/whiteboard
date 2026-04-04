@@ -32,6 +32,7 @@ export default function BoardPage() {
   const saveTimerRef = useRef<any>(null)
   const isSavingRef = useRef(false)
 
+  const isViewer = (user as any)?.role === 'viewer'
   const { remoteUsers, sendCursor, broadcastElements, isFacilitator, sessionState, voteMap, castVote, removeVote, socket } = useCollaboration(
     id || '', accessToken, user?.id, excalidrawApi
   )
@@ -173,6 +174,9 @@ export default function BoardPage() {
           {isFacilitator && (
             <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-medium">🎤 主持人</span>
           )}
+          {isViewer && (
+            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">👁️ 只讀</span>
+          )}
         </div>
 
         <div className="flex-1 flex items-center justify-center min-w-0">
@@ -188,7 +192,7 @@ export default function BoardPage() {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button onClick={manualSave} disabled={saveStatus === 'saved'}
+          <button onClick={manualSave} disabled={saveStatus === 'saved' || isViewer}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${saveStatus === 'saved' ? 'border-gray-200 text-gray-400 cursor-default' : 'border-teal-500 text-teal-600 hover:bg-teal-50'}`}>
             儲存
           </button>
@@ -219,8 +223,8 @@ export default function BoardPage() {
                 setSaveStatus('unsaved')
                 clearTimeout(saveTimerRef.current)
                 saveTimerRef.current = setTimeout(doSave, 3000)
-                // Broadcast changes to collaborators in real-time
-                broadcastElements(elements)
+                // Broadcast changes to collaborators in real-time (editors only)
+                if (!isViewer) broadcastElements(elements)
               }}
             />
           </Suspense>
