@@ -1,9 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Tldraw, Editor } from 'tldraw'
-import 'tldraw/tldraw.css'
 import { lazy, Suspense } from 'react'
-// ExcalidrawImperativeAPI type - using any for compatibility with @excalidraw/excalidraw v0.18
 type ExcalidrawImperativeAPI = any
 
 const ExcalidrawBoard = lazy(() => import('../components/board/ExcalidrawBoard'))
@@ -12,27 +9,18 @@ import api from '../lib/api'
 import { toast } from 'sonner'
 import AIPanel from '../components/ai/AIPanel'
 import RemoteCursors from '../components/board/RemoteCursors'
-import EmbedInteractionOverlay from '../components/board/EmbedInteractionOverlay'
-import ShapeLibrary from '../components/board/ShapeLibrary'
 import MediaEmbed from '../components/board/MediaEmbed'
 import BrainstormToolbar from '../components/board/BrainstormToolbar'
 import { useCollaboration } from '../hooks/useCollaboration'
 import VoteBadgeOverlay from '../components/board/VoteBadgeOverlay'
 import VoteResultsPopup from '../components/board/VoteResultsPopup'
 import { useAuthStore } from '../stores/auth.store'
-import { VoteChartShapeUtil } from '../shapes/VoteChartShape'
-import { VoteItemShapeUtil } from '../shapes/VoteItemShape'
-
-
-const customShapeUtils = [VoteChartShapeUtil, VoteItemShapeUtil]
 
 export default function BoardPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { accessToken, user } = useAuthStore()
-  const [editor, setEditor] = useState<Editor | null>(null)
   const [excalidrawApi, setExcalidrawApi] = useState<ExcalidrawImperativeAPI | null>(null)
-  const [boardType, setBoardType] = useState<'tldraw' | 'excalidraw'>('tldraw')
   const [aiOpen, setAiOpen] = useState(false)
   const [boardName, setBoardName] = useState('未命名白板')
   const [editingName, setEditingName] = useState(false)
@@ -42,13 +30,10 @@ export default function BoardPage() {
   const excalidrawDataRef = useRef<{ elements: any[]; appState: any; files: any } | null>(null)
 
   const saveTimerRef = useRef<any>(null)
-  const editorRef = useRef<Editor | null>(null)
-  const snapshotReadyRef = useRef(false)
   const isSavingRef = useRef(false)
-  const unsubRef = useRef<(() => void) | null>(null)
 
   const { remoteUsers, sendCursor, isFacilitator, sessionState, voteMap, castVote, removeVote, socket } = useCollaboration(
-    editor, id || '', accessToken, user?.id
+    id || '', accessToken, user?.id, excalidrawApi
   )
 
   const maxVotes = sessionState?.voting?.maxVotes || 5
@@ -62,7 +47,6 @@ export default function BoardPage() {
   useEffect(() => {
     const currentlyActive = sessionState?.voting?.active || false
     if (prevVotingActiveRef.current && !currentlyActive) {
-      // Voting just ended
       if (Object.keys(voteMap).length > 0) {
         setFinalVoteMap({ ...voteMap })
         setShowVoteResults(true)
@@ -76,9 +60,7 @@ export default function BoardPage() {
     api.get(`/boards/${id}`)
       .then(({ data }) => {
         if (data?.name) { setBoardName(data.name); setNameInput(data.name) }
-        if (data?.boardType) setBoardType(data.boardType)
-        // Load excalidraw initial data if sketch mode
-        if (data?.boardType === 'excalidraw' && data?.excalidrawSnapshot) {
+        if (data?.excalidrawSnapshot) {
           setExcalidrawInitialData(data.excalidrawSnapshot)
         }
       })
@@ -90,68 +72,18 @@ export default function BoardPage() {
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
-      if (boardType === 'excalidraw') {
-        if (!excalidrawDataRef.current) { setSaveStatus('saved'); return }
-        await api.post(`/boards/${id}/snapshot`, { excalidrawSnapshot: excalidrawDataRef.current })
-      } else {
-        const ed = editorRef.current
-        if (!ed) { setSaveStatus('saved'); return }
-        const snapshot = ed.store.getSnapshot()
-        await api.post(`/boards/${id}/snapshot`, { snapshot })
-      }
+      if (!excalidrawDataRef.current) { setSaveStatus('saved'); return }
+      await api.post(`/boards/${id}/snapshot`, { excalidrawSnapshot: excalidrawDataRef.current })
       setSaveStatus('saved')
     } catch { setSaveStatus('unsaved') }
     finally { isSavingRef.current = false }
-  }, [id, boardType])
+  }, [id])
 
   const manualSave = useCallback(async () => {
     clearTimeout(saveTimerRef.current)
     await doSave()
     toast.success('已儲存')
   }, [doSave])
-
-  useEffect(() => {
-    if (!id || snapshotReadyRef.current) return
-    if (boardType === 'excalidraw') {
-      // Excalidraw data loaded via board info (initialData already set)
-      snapshotReadyRef.current = true
-      return
-    }
-    if (!editor) return
-    api.get(`/boards/${id}/snapshot`)
-      .then(({ data }) => {
-        if (data?.snapshot) {
-          try { editor.store.loadSnapshot(data.snapshot) } catch (e) { console.warn(e) }
-        }
-        snapshotReadyRef.current = true
-      })
-      .catch(() => { snapshotReadyRef.current = true })
-  }, [editor, id, boardType])
-
-  const handleMount = useCallback((e: Editor) => {
-    setEditor(e)
-    editorRef.current = e
-    if (unsubRef.current) unsubRef.current()
-    unsubRef.current = e.store.listen(() => {
-      if (!snapshotReadyRef.current) return
-      setSaveStatus('unsaved')
-      clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(doSave, 3000)
-    }, { source: 'user', scope: 'document' })
-  }, [doSave])
-
-  const handlePointerMove = useCallback((_e: React.PointerEvent<HTMLDivElement>) => {
-    if (!editor) return
-    const point = editor.inputs.currentPagePoint
-    sendCursor(point.x, point.y)
-  }, [editor, sendCursor])
-
-  useEffect(() => {
-    return () => {
-      if (unsubRef.current) unsubRef.current()
-      clearTimeout(saveTimerRef.current)
-    }
-  }, [])
 
   const saveName = async () => {
     if (!id || !nameInput.trim()) return
@@ -171,12 +103,9 @@ export default function BoardPage() {
   }
 
   const handleExport = async () => {
-    if (!editor) return
+    if (!excalidrawApi) { toast.error('畫布未就緒'); return }
     try {
-      const { exportToBlob } = await import('tldraw')
-      const shapeIds = [...editor.getCurrentPageShapeIds()]
-      if (!shapeIds.length) { toast.error('畫布是空的'); return }
-      const blob = await exportToBlob({ editor, ids: shapeIds, format: 'png', opts: { scale: 2 } })
+      const blob = await excalidrawApi.exportToBlob({ mimeType: 'image/png', quality: 1 })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a'); a.href = url; a.download = `${boardName}.png`; a.click()
       URL.revokeObjectURL(url)
@@ -184,13 +113,28 @@ export default function BoardPage() {
     } catch { toast.error('匯出失敗') }
   }
 
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!excalidrawApi) return
+    try {
+      const appState = excalidrawApi.getAppState()
+      const zoom = appState.zoom?.value || 1
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      const canvasX = (e.clientX - rect.left - appState.scrollX) / zoom
+      const canvasY = (e.clientY - rect.top - appState.scrollY) / zoom
+      sendCursor(canvasX, canvasY)
+    } catch {}
+  }, [excalidrawApi, sendCursor])
+
+  useEffect(() => {
+    return () => { clearTimeout(saveTimerRef.current) }
+  }, [])
+
   const onlineCount = remoteUsers.length
   const statusColor = saveStatus === 'saved' ? 'text-green-500' : saveStatus === 'saving' ? 'text-yellow-500' : 'text-orange-400'
 
   return (
     <>
     <div className="flex flex-col h-screen bg-white">
-      {/* Top bar */}
       <header className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-white z-30 shrink-0 gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <button onClick={() => navigate('/')} className="p-1.5 hover:bg-gray-100 rounded-lg shrink-0">
@@ -231,21 +175,18 @@ export default function BoardPage() {
           )}
         </div>
 
-        {/* Brainstorm Toolbar - center */}
         <div className="flex-1 flex items-center justify-center min-w-0">
           <BrainstormToolbar
-            editor={editor}
+            excalidrawApi={excalidrawApi}
             socket={socket}
             isFacilitator={isFacilitator}
             sessionState={sessionState}
             onSessionUpdate={() => {}}
             voteMap={voteMap}
             myVotesRemaining={myVotesRemaining}
-            boardType={boardType}
           />
         </div>
 
-        {/* Right actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={manualSave} disabled={saveStatus === 'saved'}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${saveStatus === 'saved' ? 'border-gray-200 text-gray-400 cursor-default' : 'border-teal-500 text-teal-600 hover:bg-teal-50'}`}>
@@ -255,7 +196,7 @@ export default function BoardPage() {
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${aiOpen ? 'bg-teal-700 text-white' : 'bg-teal-600 text-white hover:bg-teal-700'}`}>
             <Sparkles size={13} /> AI
           </button>
-          <MediaEmbed editor={editor} />
+          <MediaEmbed excalidrawApi={excalidrawApi} />
           <button onClick={handleShare}
             className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs hover:bg-gray-50">
             <Users size={13} /> 分享
@@ -267,30 +208,23 @@ export default function BoardPage() {
         </div>
       </header>
 
-      {/* Main: ShapeLibrary | Canvas | AIPanel */}
       <div className="flex flex-1 overflow-hidden relative">
-        {boardType === 'tldraw' && <ShapeLibrary editor={editor} />}
         <div className="flex-1 relative" onPointerMove={handlePointerMove}>
-          {boardType === 'excalidraw' ? (
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">載入草圖模式...</div>}>
-              <ExcalidrawBoard
-                initialData={excalidrawInitialData}
-                onMount={setExcalidrawApi}
-                onChange={(elements, appState, files) => {
-                  excalidrawDataRef.current = { elements: elements as any[], appState, files }
-                  setSaveStatus('unsaved')
-                  clearTimeout(saveTimerRef.current)
-                  saveTimerRef.current = setTimeout(doSave, 3000)
-                }}
-              />
-            </Suspense>
-          ) : (
-            <Tldraw shapeUtils={customShapeUtils} onMount={handleMount} />
-          )}
-          <RemoteCursors editor={boardType === 'tldraw' ? editor : null} socket={socket} />
-          <EmbedInteractionOverlay editor={editor} />
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">載入白板...</div>}>
+            <ExcalidrawBoard
+              initialData={excalidrawInitialData}
+              onMount={setExcalidrawApi}
+              onChange={(elements, appState, files) => {
+                excalidrawDataRef.current = { elements: elements as any[], appState, files }
+                setSaveStatus('unsaved')
+                clearTimeout(saveTimerRef.current)
+                saveTimerRef.current = setTimeout(doSave, 3000)
+              }}
+            />
+          </Suspense>
+          <RemoteCursors excalidrawApi={excalidrawApi} socket={socket} />
           <VoteBadgeOverlay
-            editor={editor}
+            excalidrawApi={excalidrawApi}
             voteMap={voteMap}
             votingActive={sessionState?.voting?.active || false}
             onVote={castVote}
@@ -307,14 +241,14 @@ export default function BoardPage() {
                 <X size={15} />
               </button>
             </div>
-            <AIPanel editor={editor} boardId={id!} onSave={manualSave} />
+            <AIPanel excalidrawApi={excalidrawApi} boardId={id!} onSave={manualSave} />
           </div>
         )}
       </div>
     </div>
       {showVoteResults && (
         <VoteResultsPopup
-          editor={editor}
+          excalidrawApi={excalidrawApi}
           voteMap={finalVoteMap}
           onClose={() => setShowVoteResults(false)}
         />

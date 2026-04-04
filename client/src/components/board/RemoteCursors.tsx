@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react'
-import { Editor } from 'tldraw'
 import { Socket } from 'socket.io-client'
 
 interface CursorData {
@@ -11,14 +10,14 @@ interface CursorData {
 }
 
 interface Props {
-  editor: Editor | null
+  excalidrawApi: any | null
   socket: Socket | null
 }
 
-export default function RemoteCursors({ editor, socket }: Props) {
+export default function RemoteCursors({ excalidrawApi, socket }: Props) {
   const [cursors, setCursors] = useState<Record<string, CursorData>>({})
-  const editorRef = useRef(editor)
-  editorRef.current = editor
+  const apiRef = useRef(excalidrawApi)
+  apiRef.current = excalidrawApi
 
   useEffect(() => {
     if (!socket) return
@@ -33,22 +32,24 @@ export default function RemoteCursors({ editor, socket }: Props) {
     return () => { socket.off('cursor:move', onMove); socket.off('user:left', onLeave) }
   }, [socket])
 
-  if (!editor) return null
+  if (!excalidrawApi) return null
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
       {Object.values(cursors).map(cursor => {
-        const ed = editorRef.current
-        if (!ed) return null
+        const api = apiRef.current
+        if (!api) return null
         try {
-          const screen = ed.pageToScreen({ x: cursor.x, y: cursor.y })
+          const appState = api.getAppState()
+          const zoom = appState.zoom?.value || 1
+          const scrollX = appState.scrollX || 0
+          const scrollY = appState.scrollY || 0
+          const screenX = cursor.x * zoom + scrollX
+          const screenY = cursor.y * zoom + scrollY
           return (
             <div key={cursor.socketId} style={{
-              position: 'absolute',
-              left: screen.x,
-              top: screen.y,
-              transform: 'translate(-2px, -2px)',
-              pointerEvents: 'none',
+              position: 'absolute', left: screenX, top: screenY,
+              transform: 'translate(-2px, -2px)', pointerEvents: 'none',
               transition: 'left 80ms linear, top 80ms linear',
             }}>
               <svg width="20" height="20" viewBox="0 0 20 20" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>

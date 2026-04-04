@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { Editor } from 'tldraw'
 import { toast } from 'sonner'
 
 export interface RemoteUser {
@@ -32,7 +31,7 @@ export interface VoteData {
   userVotesRemaining: number
 }
 
-export function useCollaboration(editor: Editor | null, boardId: string, accessToken: string | null, userId?: string) {
+export function useCollaboration(boardId: string, accessToken: string | null, userId?: string, excalidrawApi?: any) {
   const socketRef = useRef<Socket | null>(null)
   const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([])
   const [connected, setConnected] = useState(false)
@@ -40,10 +39,11 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
   const [sessionState, setSessionState] = useState<SessionState | null>(null)
   const [voteMap, setVoteMap] = useState<Record<string, number>>({})
   const [socketState, setSocketState] = useState<Socket | null>(null)
-  const isApplyingPatchRef = useRef(false)
+  const excalidrawApiRef = useRef(excalidrawApi)
+  excalidrawApiRef.current = excalidrawApi
 
   useEffect(() => {
-    if (!editor || !boardId || !accessToken) return
+    if (!boardId || !accessToken) return
 
     const socket = io('/collab', {
       auth: { token: accessToken },
@@ -80,19 +80,6 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
       if (userId && state.facilitatorId === userId) setIsFacilitator(true)
     })
 
-    socket.on('store:patch', ({ patch }: { patch: any }) => {
-      if (!editor) return
-      isApplyingPatchRef.current = true
-      try {
-        editor.store.mergeRemoteChanges(() => {
-          if (patch.added) for (const r of Object.values(patch.added)) editor.store.put([r as any])
-          if (patch.updated) for (const [, next] of Object.values(patch.updated) as any[]) editor.store.put([next])
-          if (patch.removed) for (const r of Object.values(patch.removed)) editor.store.remove([(r as any).id])
-        })
-      } catch (e) { console.warn('[Collab] patch error:', e) }
-      finally { isApplyingPatchRef.current = false }
-    })
-
     socket.on('cursor:move', ({ socketId, x, y, name, color }: any) => {
       setRemoteUsers(prev => prev.map(u => u.socketId === socketId ? { ...u, cursor: { x, y } } : u))
     })
@@ -100,17 +87,15 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
     // Voting events
     socket.on('vote:started', (voting: any) => {
       setSessionState(s => s ? { ...s, voting } : null)
-      setVoteMap({}) // Reset votes for new session
+      setVoteMap({})
       toast.success(`🗳️ Voting started! You have ${voting.maxVotes} votes`)
     })
     socket.on('vote:ended', (voting: any) => {
       setSessionState(s => s ? { ...s, voting } : null)
-      // Don't clear voteMap here - keep for results display, cleared on next vote:started
       toast.info('🗳️ Voting ended')
     })
-    socket.on('vote:update', ({ shapeId, votes, userVotesRemaining, userId }: { shapeId: string; votes: number; userVotesRemaining: number; userId: string }) => {
+    socket.on('vote:update', ({ shapeId, votes, userVotesRemaining, userId: vUserId }: { shapeId: string; votes: number; userVotesRemaining: number; userId: string }) => {
       setVoteMap(prev => ({ ...prev, [shapeId]: votes }))
-      // Update userVoteCount in sessionState so myVotesRemaining is accurate
       setSessionState(s => {
         if (!s) return s
         return {
@@ -119,7 +104,7 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
             ...s.voting,
             userVoteCount: {
               ...s.voting.userVoteCount,
-              [userId]: (s.voting.maxVotes || 5) - userVotesRemaining,
+              [vUserId]: (s.voting.maxVotes || 5) - userVotesRemaining,
             }
           }
         }
@@ -148,26 +133,14 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
       setSessionState(s => s ? { ...s, cursorsLocked: locked } : null)
       toast.info(locked ? '🔒 游標已鎖定' : '🔓 游標已解鎖')
     })
-    socket.on('facilitator:spotlight', ({ bounds }: { bounds: any }) => {
-      if (bounds && editor) {
-        try {
-          editor.zoomToBounds(bounds, { animation: { duration: 600 }, inset: 40 })
-        } catch (e) {
-          console.warn('zoomToBounds failed:', e)
-        }
-      }
+    socket.on('facilitator:spotlight', () => {
+      // Scroll to fit content in Excalidraw
+      try {
+        excalidrawApiRef.current?.scrollToContent()
+      } catch {}
     })
 
-    // Listen local store changes
-    const unsub = editor.store.listen(({ changes }) => {
-      if (isApplyingPatchRef.current) return
-      if (!socket.connected) return
-      const hasChanges = Object.keys(changes.added).length > 0 || Object.keys(changes.updated).length > 0 || Object.keys(changes.removed).length > 0
-      if (hasChanges) socket.emit('store:patch', { patch: changes })
-    }, { source: 'user', scope: 'document' })
-
     return () => {
-      unsub()
       socket.disconnect()
       socketRef.current = null
       setSocketState(null)
@@ -175,7 +148,7 @@ export function useCollaboration(editor: Editor | null, boardId: string, accessT
       setConnected(false)
       setIsFacilitator(false)
     }
-  }, [editor, boardId, accessToken, userId])
+  }, [boardId, accessToken, userId])
 
   const sendCursor = useCallback((x: number, y: number) => {
     socketRef.current?.emit('cursor:move', { x, y })

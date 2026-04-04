@@ -1,11 +1,10 @@
 import { useCallback } from 'react'
-import { Editor, createShapeId } from 'tldraw'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, LabelList } from 'recharts'
 import { X, Download, BarChart2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Props {
-  editor: Editor | null
+  excalidrawApi: any | null
   voteMap: Record<string, number>
   onClose: () => void
 }
@@ -16,32 +15,22 @@ function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + '...' : str
 }
 
-function extractText(node: any): string {
-  if (!node) return ''
-  if (typeof node === 'string') return node
-  if (node.text) return node.text
-  if (Array.isArray(node)) return node.map(extractText).filter(Boolean).join(' ')
-  if (node.children) return extractText(node.children)
-  if (node.content) return extractText(node.content)
-  return ''
-}
+function mkId() { return Math.random().toString(36).substr(2, 9) }
 
-export default function VoteResultsPopup({ editor, voteMap, onClose }: Props) {
-  const getLabel = useCallback((shapeId: string): string => {
-    if (!editor) return shapeId.slice(0, 8)
+export default function VoteResultsPopup({ excalidrawApi, voteMap, onClose }: Props) {
+  const getLabel = useCallback((elementId: string): string => {
+    if (!excalidrawApi) return elementId.slice(0, 8)
     try {
-      const shape = editor.getShape(shapeId as any) as any
-      if (!shape) return 'Shape'
-      const text = extractText(shape?.props?.richText)
-        || shape?.props?.text
-        || shape?.props?.label
-        || ''
+      const elements = excalidrawApi.getSceneElements() as any[]
+      const el = elements.find((e: any) => e.id === elementId)
+      if (!el) return 'Element'
+      const text = el.text || el.label || ''
       const cleaned = text.replace(/\n/g, ' ').trim()
-      return truncate(cleaned || shape.type, 28)
+      return truncate(cleaned || el.type, 28)
     } catch {
-      return shapeId.slice(0, 8)
+      return elementId.slice(0, 8)
     }
-  }, [editor])
+  }, [excalidrawApi])
 
   const data = Object.entries(voteMap)
     .filter(([, v]) => v > 0)
@@ -52,43 +41,53 @@ export default function VoteResultsPopup({ editor, voteMap, onClose }: Props) {
   const maxVotes = data[0]?.votes || 1
 
   const insertToCanvas = useCallback(() => {
-    if (!editor) return
+    if (!excalidrawApi) return
     if (data.length === 0) { toast.error('No votes to insert'); return }
 
     try {
-      const b = editor.getViewportPageBounds()
-      const cx = b.x + b.w / 2
-      const cy = b.y + b.h / 2
-      const w = Math.max(380, Math.min(560, b.w * 0.65))
-      const h = Math.max(200, data.length * 56 + 100)
+      const appState = excalidrawApi.getAppState()
+      const zoom = appState.zoom?.value || 1
+      const cx = (window.innerWidth / 2 - appState.scrollX) / zoom
+      const cy = (window.innerHeight / 2 - appState.scrollY) / zoom
 
-      editor.createShape({
-        id: createShapeId(),
-        type: 'vote-chart',
-        x: cx - w / 2,
-        y: cy - h / 2,
-        props: {
-          w,
-          h,
-          chartData: data.map(d => ({ name: d.name, votes: d.votes })),
-          totalVotes,
-        },
-      } as any)
+      const w = 500, h = data.length * 44 + 100
+      const now = Date.now()
+      const mkEl = (overrides: any) => ({
+        id: mkId(), angle: 0, strokeColor: '#374151', backgroundColor: 'transparent',
+        fillStyle: 'hachure' as const, strokeWidth: 1, strokeStyle: 'solid' as const,
+        roughness: 0, opacity: 100, seed: Math.floor(Math.random() * 100000),
+        versionNonce: Math.floor(Math.random() * 100000), version: 1, isDeleted: false,
+        boundElements: null, updated: now, locked: false, ...overrides,
+      })
 
-      try { (editor as any).zoomToContent?.() } catch {}
+      const newElements: any[] = []
+      // Background
+      newElements.push(mkEl({ type: 'rectangle', x: cx - w / 2, y: cy - h / 2, width: w, height: h, backgroundColor: '#fffbeb', strokeColor: '#f59e0b', strokeWidth: 2 }))
+      // Title
+      newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 20, y: cy - h / 2 + 14, width: w - 40, height: 30, text: `🏆 Vote Results — Total: ${totalVotes} votes`, fontSize: 18, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 14, strokeColor: '#1f2937' }))
+      // Bars
+      data.forEach((item, i) => {
+        const barMaxW = w - 200
+        const barW = Math.max(4, (item.votes / maxVotes) * barMaxW)
+        const y = cy - h / 2 + 60 + i * 44
+        newElements.push(mkEl({ type: 'rectangle', x: cx - w / 2 + 160, y, width: barW, height: 30, backgroundColor: COLORS[i % COLORS.length], strokeColor: COLORS[i % COLORS.length] }))
+        newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 10, y: y + 6, width: 145, height: 20, text: `${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`} ${item.name}`, fontSize: 13, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 10, strokeColor: '#374151' }))
+        newElements.push(mkEl({ type: 'text', x: cx - w / 2 + 165 + barW, y: y + 6, width: 60, height: 20, text: `${item.votes}`, fontSize: 13, fontFamily: 1, textAlign: 'left', verticalAlign: 'top', baseline: 10, strokeColor: '#374151' }))
+      })
+
+      excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...newElements] })
+      try { excalidrawApi.scrollToContent() } catch {}
       toast.success('Vote chart inserted into whiteboard!')
       onClose()
     } catch (e) {
       console.error(e)
       toast.error('Insert failed, please try again')
     }
-  }, [editor, data, totalVotes, onClose])
+  }, [excalidrawApi, data, totalVotes, onClose])
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-yellow-50 to-orange-50">
           <h3 className="font-bold text-gray-800 flex items-center gap-2">
             <BarChart2 size={18} className="text-yellow-600" />
@@ -100,9 +99,7 @@ export default function VoteResultsPopup({ editor, voteMap, onClose }: Props) {
           </button>
         </div>
 
-        {/* Chart area - this gets screenshotted */}
         <div style={{ background: '#ffffff', padding: '20px' }}>
-          {/* Chart title */}
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 24 }}>🏆</span>
             <div>
@@ -115,31 +112,21 @@ export default function VoteResultsPopup({ editor, voteMap, onClose }: Props) {
             <div style={{ textAlign: 'center', color: '#9ca3af', padding: '32px 0' }}>No votes received</div>
           ) : (
             <>
-              {/* Recharts bar chart */}
               <ResponsiveContainer width="100%" height={Math.max(160, data.length * 48 + 40)}>
                 <BarChart data={data} layout="vertical" margin={{ top: 4, right: 70, left: 8, bottom: 4 }}>
                   <XAxis type="number" domain={[0, maxVotes]} tickCount={Math.min(maxVotes + 1, 6)} allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} />
                   <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12, fill: '#374151' }} />
-                  <Tooltip
-                    formatter={(v: number) => [`${v} votes`, 'Count']}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                  />
+                  <Tooltip formatter={(v: number) => [`${v} votes`, 'Count']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
                   <Bar dataKey="votes" radius={[0, 6, 6, 0]} barSize={28}>
                     <LabelList dataKey="votes" position="right" style={{ fontSize: 12, fontWeight: 700, fill: '#374151' }} formatter={(v: number) => `${v} votes`} />
-                    {data.map((entry, i) => (
-                      <Cell key={entry.id} fill={COLORS[i % COLORS.length]} />
-                    ))}
+                    {data.map((entry, i) => <Cell key={entry.id} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-
-              {/* Rankings */}
               <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {data.slice(0, 5).map((item, i) => (
                   <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18, flexShrink: 0, minWidth: 28 }}>
-                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
-                    </span>
+                    <span style={{ fontSize: 18, flexShrink: 0, minWidth: 28 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
@@ -156,19 +143,13 @@ export default function VoteResultsPopup({ editor, voteMap, onClose }: Props) {
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3 px-5 py-4 border-t bg-gray-50">
-          <button
-            onClick={insertToCanvas}
-            disabled={data.length === 0}
-            className="flex-1 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
+          <button onClick={insertToCanvas} disabled={data.length === 0}
+            className="flex-1 py-2.5 bg-yellow-500 text-white rounded-xl font-semibold text-sm hover:bg-yellow-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             <Download size={15} />
             Insert to Whiteboard
           </button>
-          <button onClick={onClose} className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-100">
-            Close
-          </button>
+          <button onClick={onClose} className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600 hover:bg-gray-100">Close</button>
         </div>
       </div>
     </div>
