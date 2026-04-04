@@ -2,6 +2,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Tldraw, Editor } from 'tldraw'
 import 'tldraw/tldraw.css'
+import { lazy, Suspense } from 'react'
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw'
+
+const ExcalidrawBoard = lazy(() => import('../components/board/ExcalidrawBoard'))
 import { ArrowLeft, Download, Sparkles, X, Users, Check, Pencil } from 'lucide-react'
 import api from '../lib/api'
 import { toast } from 'sonner'
@@ -26,11 +30,15 @@ export default function BoardPage() {
   const navigate = useNavigate()
   const { accessToken, user } = useAuthStore()
   const [editor, setEditor] = useState<Editor | null>(null)
+  const [excalidrawApi, setExcalidrawApi] = useState<ExcalidrawImperativeAPI | null>(null)
+  const [boardType, setBoardType] = useState<'tldraw' | 'excalidraw'>('tldraw')
   const [aiOpen, setAiOpen] = useState(false)
   const [boardName, setBoardName] = useState('未命名白板')
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [excalidrawInitialData, setExcalidrawInitialData] = useState<any>(null)
+  const excalidrawDataRef = useRef<{ elements: any[]; appState: any; files: any } | null>(null)
 
   const saveTimerRef = useRef<any>(null)
   const editorRef = useRef<Editor | null>(null)
@@ -67,22 +75,33 @@ export default function BoardPage() {
     api.get(`/boards/${id}`)
       .then(({ data }) => {
         if (data?.name) { setBoardName(data.name); setNameInput(data.name) }
+        if (data?.boardType) setBoardType(data.boardType)
+        // Load excalidraw initial data if sketch mode
+        if (data?.boardType === 'excalidraw' && data?.excalidrawSnapshot) {
+          setExcalidrawInitialData(data.excalidrawSnapshot)
+        }
       })
       .catch(console.warn)
   }, [id])
 
   const doSave = useCallback(async () => {
-    const ed = editorRef.current
-    if (!ed || !id || isSavingRef.current) return
+    if (!id || isSavingRef.current) return
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
-      const snapshot = ed.store.getSnapshot()
-      await api.post(`/boards/${id}/snapshot`, { snapshot })
+      if (boardType === 'excalidraw') {
+        if (!excalidrawDataRef.current) { setSaveStatus('saved'); return }
+        await api.post(`/boards/${id}/snapshot`, { excalidrawSnapshot: excalidrawDataRef.current })
+      } else {
+        const ed = editorRef.current
+        if (!ed) { setSaveStatus('saved'); return }
+        const snapshot = ed.store.getSnapshot()
+        await api.post(`/boards/${id}/snapshot`, { snapshot })
+      }
       setSaveStatus('saved')
     } catch { setSaveStatus('unsaved') }
     finally { isSavingRef.current = false }
-  }, [id])
+  }, [id, boardType])
 
   const manualSave = useCallback(async () => {
     clearTimeout(saveTimerRef.current)
@@ -91,7 +110,13 @@ export default function BoardPage() {
   }, [doSave])
 
   useEffect(() => {
-    if (!editor || !id || snapshotReadyRef.current) return
+    if (!id || snapshotReadyRef.current) return
+    if (boardType === 'excalidraw') {
+      // Excalidraw data loaded via board info (initialData already set)
+      snapshotReadyRef.current = true
+      return
+    }
+    if (!editor) return
     api.get(`/boards/${id}/snapshot`)
       .then(({ data }) => {
         if (data?.snapshot) {
@@ -100,7 +125,7 @@ export default function BoardPage() {
         snapshotReadyRef.current = true
       })
       .catch(() => { snapshotReadyRef.current = true })
-  }, [editor, id])
+  }, [editor, id, boardType])
 
   const handleMount = useCallback((e: Editor) => {
     setEditor(e)
@@ -242,10 +267,25 @@ export default function BoardPage() {
 
       {/* Main: ShapeLibrary | Canvas | AIPanel */}
       <div className="flex flex-1 overflow-hidden relative">
-        <ShapeLibrary editor={editor} />
+        {boardType === 'tldraw' && <ShapeLibrary editor={editor} />}
         <div className="flex-1 relative" onPointerMove={handlePointerMove}>
-          <Tldraw shapeUtils={customShapeUtils} onMount={handleMount} />
-          <RemoteCursors editor={editor} socket={socket} />
+          {boardType === 'excalidraw' ? (
+            <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">載入草圖模式...</div>}>
+              <ExcalidrawBoard
+                initialData={excalidrawInitialData}
+                onMount={setExcalidrawApi}
+                onChange={(elements, appState, files) => {
+                  excalidrawDataRef.current = { elements: elements as any[], appState, files }
+                  setSaveStatus('unsaved')
+                  clearTimeout(saveTimerRef.current)
+                  saveTimerRef.current = setTimeout(doSave, 3000)
+                }}
+              />
+            </Suspense>
+          ) : (
+            <Tldraw shapeUtils={customShapeUtils} onMount={handleMount} />
+          )}
+          <RemoteCursors editor={boardType === 'tldraw' ? editor : null} socket={socket} />
           <EmbedInteractionOverlay editor={editor} />
           <VoteBadgeOverlay
             editor={editor}

@@ -33,6 +33,12 @@ export class Board {
   @Column({ name: 'tldraw_snapshot', type: 'jsonb', nullable: true })
   tldrawSnapshot: any;
 
+  @Column({ name: 'board_type', default: 'tldraw' })
+  boardType: string;
+
+  @Column({ name: 'excalidraw_snapshot', type: 'jsonb', nullable: true })
+  excalidrawSnapshot: any;
+
   @OneToMany(() => BoardMember, m => m.board)
   members: BoardMember[];
 

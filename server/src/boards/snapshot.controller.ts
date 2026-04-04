@@ -14,7 +14,10 @@ export class SnapshotController {
   }
 
   @Post(':id/snapshot')
-  async saveSnapshot(@Param('id') id: string, @CurrentUser() user: any, @Body() body: { snapshot: any }) {
+  async saveSnapshot(@Param('id') id: string, @CurrentUser() user: any, @Body() body: { snapshot?: any; excalidrawSnapshot?: any }) {
+    if (body.excalidrawSnapshot !== undefined) {
+      return this.boardsService.saveExcalidrawSnapshot(id, user.sub, body.excalidrawSnapshot);
+    }
     return this.boardsService.saveSnapshot(id, user.sub, body.snapshot);
   }
 }

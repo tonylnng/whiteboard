@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Plus, LogOut, Moon, Sun, Grid, Folder, Search, Pencil, Trash2, Copy, Check, X } from 'lucide-react'
+import NewBoardModal from '../components/board/NewBoardModal'
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 import { useUIStore } from '../stores/ui.store'
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useUIStore()
   const [search, setSearch] = useState('')
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false)
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
@@ -28,7 +30,7 @@ export default function DashboardPage() {
   })
 
   const createBoard = useMutation({
-    mutationFn: () => api.post('/boards', { name: '未命名白板', folderId: selectedFolder }).then(r => r.data),
+    mutationFn: (boardType: 'tldraw' | 'excalidraw') => api.post('/boards', { name: '未命名白板', folderId: selectedFolder, boardType }).then(r => r.data),
     onSuccess: (board) => { queryClient.invalidateQueries({ queryKey: ['boards'] }); navigate(`/board/${board.id}`) },
     onError: () => toast.error('建立失敗'),
   })
@@ -120,7 +122,7 @@ export default function DashboardPage() {
                 className="pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
           </div>
-          <button onClick={() => createBoard.mutate()} disabled={createBoard.isPending}
+          <button onClick={() => setShowNewBoardModal(true)} disabled={createBoard.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium disabled:opacity-50">
             <Plus size={16} /> 新建白板
           </button>
@@ -144,8 +146,19 @@ export default function DashboardPage() {
                   onClick={() => editingId !== board.id && navigate(`/board/${board.id}`)}
                   className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all hover:border-teal-300">
                   {/* Thumbnail */}
-                  <div className="h-32 bg-gradient-to-br from-teal-50 to-blue-50 dark:from-teal-900 dark:to-blue-900 flex items-center justify-center">
-                    <span className="text-4xl">🎨</span>
+                  <div className={`h-32 flex items-center justify-center relative ${
+                    board.boardType === 'excalidraw'
+                      ? 'bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900 dark:to-yellow-900'
+                      : 'bg-gradient-to-br from-teal-50 to-blue-50 dark:from-teal-900 dark:to-blue-900'
+                  }`}>
+                    <span className="text-4xl">{board.boardType === 'excalidraw' ? '✏️' : '🎨'}</span>
+                    <span className={`absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      board.boardType === 'excalidraw'
+                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                        : 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300'
+                    }`}>
+                      {board.boardType === 'excalidraw' ? '草圖' : '清晰'}
+                    </span>
                   </div>
                   {/* Info */}
                   <div className="p-3">
@@ -194,6 +207,16 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {showNewBoardModal && (
+        <NewBoardModal
+          onConfirm={(boardType) => {
+            setShowNewBoardModal(false)
+            createBoard.mutate(boardType)
+          }}
+          onClose={() => setShowNewBoardModal(false)}
+        />
+      )}
     </div>
   )
 }

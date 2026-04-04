@@ -7,4 +7,8 @@ export class CreateBoardDto {
   @IsOptional()
   @IsString()
   folderId?: string;
+
+  @IsOptional()
+  @IsString()
+  boardType?: string;
 }

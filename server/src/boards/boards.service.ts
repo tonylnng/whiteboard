@@ -107,12 +107,15 @@ export class BoardsService {
     return { boardId, targetEmail, role };
   }
 
-  async getSnapshot(boardId: string, userId: string): Promise<{ snapshot: any }> {
+  async getSnapshot(boardId: string, userId: string): Promise<{ snapshot: any; excalidrawSnapshot?: any }> {
     await this.findOne(boardId, userId);
     const result = await this.boardRepo.query(
-      'SELECT tldraw_snapshot FROM boards WHERE id = $1', [boardId]
+      'SELECT tldraw_snapshot, excalidraw_snapshot FROM boards WHERE id = $1', [boardId]
     );
-    return { snapshot: result[0]?.tldraw_snapshot || null };
+    return {
+      snapshot: result[0]?.tldraw_snapshot || null,
+      excalidrawSnapshot: result[0]?.excalidraw_snapshot || null,
+    };
   }
 
   async saveSnapshot(boardId: string, userId: string, snapshot: any): Promise<{ ok: boolean }> {
@@ -120,6 +123,15 @@ export class BoardsService {
     await this.boardRepo.query(
       'UPDATE boards SET tldraw_snapshot = $1, updated_at = NOW() WHERE id = $2',
       [JSON.stringify(snapshot), boardId]
+    );
+    return { ok: true };
+  }
+
+  async saveExcalidrawSnapshot(boardId: string, userId: string, excalidrawSnapshot: any): Promise<{ ok: boolean }> {
+    await this.findOne(boardId, userId);
+    await this.boardRepo.query(
+      'UPDATE boards SET excalidraw_snapshot = $1, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify(excalidrawSnapshot), boardId]
     );
     return { ok: true };
   }
