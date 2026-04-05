@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Settings2 } from 'lucide-react'
 import api from '../../lib/api'
+import { useDrawingStyle, applyStyle } from '../../hooks/useDrawingStyle'
+import DrawingStylePanel from '../board/DrawingStylePanel'
 
 interface Props { excalidrawApi: any | null; boardId: string; onSave?: () => void }
 type Feature = 'stickies' | 'agent' | 'sidekick'
@@ -50,11 +53,17 @@ function mkText(x: number, y: number, w: number, text: string, fontSize = 13, co
 
 const STICKY_COLORS = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fed7aa', '#e9d5ff', '#fecaca']
 
+let _aiStyle: ReturnType<typeof useDrawingStyle>['style'] | null = null
+
 function createStickyElements(x: number, y: number, text: string, color: string) {
   const rectId = mkId()
+  const styleOverrides = _aiStyle ? applyStyle(_aiStyle) : {}
   const rect = mkBase({
+    ...styleOverrides,
     type: 'rectangle', id: rectId, x, y, width: 180, height: 120,
-    backgroundColor: color, fillStyle: 'solid', strokeColor: color, roughness: 0,
+    backgroundColor: color,
+    fillStyle: _aiStyle?.fillStyle ?? 'solid',
+    strokeColor: color, roughness: _aiStyle?.roughness ?? 0,
   })
   const textEl = mkBase({
     type: 'text', x: x + 8, y: y + 10, width: 164, height: 100,
@@ -96,10 +105,13 @@ function executeActions(api: any, actions: any[], getCenter: () => { cx: number;
         }
         case 'create_shape': {
           const type = p.type === 'ellipse' ? 'ellipse' : p.type === 'diamond' ? 'diamond' : 'rectangle'
+          const shapeStyleOverrides = _aiStyle ? applyStyle(_aiStyle) : {}
           newElements.push(mkBase({
+            ...shapeStyleOverrides,
             type, x: p.x ?? 100, y: p.y ?? 100,
             width: p.width ?? 160, height: p.height ?? 80,
-            backgroundColor: p.color || '#bfdbfe', fillStyle: 'solid',
+            backgroundColor: p.color || '#bfdbfe',
+            fillStyle: _aiStyle?.fillStyle ?? 'solid',
             strokeColor: p.color || '#bfdbfe',
           }))
           if (p.text) {
@@ -176,6 +188,9 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string>('')
   const [chatHistory, setChatHistory] = useState<any[]>([])
+  const [showStyle, setShowStyle] = useState(false)
+  const { style: aiStyle, setStyle: setAiStyle, resetStyle } = useDrawingStyle()
+  _aiStyle = aiStyle
 
   const features = [
     { id: 'stickies', label: '🗒️ 便利貼', desc: '批量生成便利貼到畫布' },
@@ -273,15 +288,36 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-gray-100 space-y-1">
-        {features.map(f => (
-          <button key={f.id}
-            onClick={() => { setFeature(f.id as Feature); setResult(''); setInput(''); setChatHistory([]) }}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${feature === f.id ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <span className="font-medium">{f.label}</span>
-            <span className="block text-xs text-gray-400 mt-0.5">{f.desc}</span>
+      {/* Feature selector + Style toggle */}
+      <div className="p-3 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">功能</span>
+          <button
+            onClick={() => setShowStyle(v => !v)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors ${showStyle ? 'bg-teal-100 text-teal-700' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
+          >
+            <Settings2 size={11} /> 絮製樣式
           </button>
-        ))}
+        </div>
+        {showStyle ? (
+          <div className="-mx-3">
+            <div className="px-3 pb-1">
+              <p className="text-[10px] text-gray-400">此設定套用至 AI 生成的所有圖形</p>
+            </div>
+            <DrawingStylePanel style={aiStyle} onChange={setAiStyle} onReset={resetStyle} />
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {features.map(f => (
+              <button key={f.id}
+                onClick={() => { setFeature(f.id as Feature); setResult(''); setInput(''); setChatHistory([]) }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${feature === f.id ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'text-gray-600 hover:bg-gray-50'}`}>
+                <span className="font-medium">{f.label}</span>
+                <span className="block text-xs text-gray-400 mt-0.5">{f.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-3 border-b border-gray-100">

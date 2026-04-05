@@ -10,7 +10,6 @@ import { toast } from 'sonner'
 import AIPanel from '../components/ai/AIPanel'
 import RemoteCursors from '../components/board/RemoteCursors'
 import ExcalidrawErrorBoundary from '../components/board/ExcalidrawErrorBoundary'
-import MediaEmbed from '../components/board/MediaEmbed'
 import BrainstormToolbar from '../components/board/BrainstormToolbar'
 import { useCollaboration } from '../hooks/useCollaboration'
 import VoteBadgeOverlay from '../components/board/VoteBadgeOverlay'
@@ -201,8 +200,7 @@ export default function BoardPage() {
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${aiOpen ? 'bg-teal-700 text-white' : 'bg-teal-600 text-white hover:bg-teal-700'}`}>
             <Sparkles size={13} /> AI
           </button>
-          <MediaEmbed excalidrawApi={excalidrawApi} />
-          <button onClick={handleShare}
+<button onClick={handleShare}
             className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs hover:bg-gray-50">
             <Users size={13} /> 分享
           </button>

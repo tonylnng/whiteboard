@@ -3,8 +3,10 @@ import { Socket } from 'socket.io-client'
 import { toast } from 'sonner'
 import {
   Vote, Timer, LayoutTemplate, EyeOff, Brain,
-  Play, Square, Lock, Unlock, Crosshair, X
+  Play, Square, Lock, Unlock, Crosshair, X, Settings2
 } from 'lucide-react'
+import { useDrawingStyle, applyStyle } from '../../hooks/useDrawingStyle'
+import DrawingStylePanel from './DrawingStylePanel'
 
 interface Props {
   excalidrawApi: any | null
@@ -54,8 +56,25 @@ function mkBase(overrides: Record<string, any>): any {
   }
 }
 
+// Style-aware element factories — style is injected at call time
+let _currentStyle: ReturnType<typeof import('../../hooks/useDrawingStyle').useDrawingStyle>['style'] | null = null
+function withStyle(overrides: Record<string, any>): Record<string, any> {
+  if (!_currentStyle) return overrides
+  return {
+    ...applyStyle(_currentStyle),
+    ...overrides,
+    // preserve explicit bg and stroke from template definitions
+  }
+}
+
 function mkRect(x: number, y: number, w: number, h: number, bg: string, stroke?: string): any {
-  return mkBase({ type: 'rectangle', x, y, width: w, height: h, backgroundColor: bg, fillStyle: 'solid', strokeColor: stroke || '#374151' })
+  return mkBase({
+    ...(_currentStyle ? applyStyle(_currentStyle) : {}),
+    type: 'rectangle', x, y, width: w, height: h,
+    backgroundColor: _currentStyle?.fillStyle === 'none' ? 'transparent' : bg,
+    fillStyle: _currentStyle?.fillStyle ?? 'solid',
+    strokeColor: stroke || '#374151',
+  })
 }
 
 function mkText(x: number, y: number, w: number, text: string, fontSize = 14, color = '#374151', align = 'center'): any {
@@ -670,10 +689,15 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
   const [timerMinutes, setTimerMinutes] = useState(5)
   const [showVoting, setShowVoting] = useState(false)
   const [templateTab, setTemplateTab] = useState<string>('all')
+  const [templateSubTab, setTemplateSubTab] = useState<'browse' | 'style'>('browse')
   const [maxVotes, setMaxVotes] = useState(5)
   const [showAI, setShowAI] = useState(false)
   const [aiLoading, setAILoading] = useState(false)
   const [aiResult, setAIResult] = useState('')
+  const { style: drawingStyle, setStyle: setDrawingStyle, resetStyle } = useDrawingStyle()
+
+  // Inject current style into template element factories
+  _currentStyle = drawingStyle
 
   const voting = sessionState?.voting
   const timer = sessionState?.timer
@@ -709,6 +733,7 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
 
   const loadTemplate = (template: typeof TEMPLATES[0]) => {
     if (!excalidrawApi) return
+    _currentStyle = drawingStyle  // ensure latest style is applied
     const newElements = template.create(excalidrawApi)
     excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...newElements] })
     setTimeout(() => { try { excalidrawApi.scrollToContent() } catch {} }, 100)
@@ -825,39 +850,65 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
             <LayoutTemplate size={13} /> 模板
           </button>
           {showTemplates && (
-            <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
-              <div className="px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
-                <p className="text-xs font-semibold text-gray-500 mb-2">選擇模板</p>
-                <div className="flex gap-1 flex-wrap">
-                  {[
-                    { id: 'all', label: '全部', emoji: '📋' },
-                    { id: 'brainstorm', label: '腦暴', emoji: '💡' },
-                    { id: 'retro', label: '回顧', emoji: '🔄' },
-                    { id: 'agile', label: 'Agile', emoji: '🚂' },
-                    { id: 'strategy', label: '策略', emoji: '🎯' },
-                    { id: 'design', label: '設計', emoji: '❤️' },
-                  ].map(tab => (
-                    <button key={tab.id} onClick={() => setTemplateTab(tab.id)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${templateTab === tab.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      <span>{tab.emoji}</span>{tab.label}
-                    </button>
-                  ))}
-                </div>
+            <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              {/* Sub-tab header */}
+              <div className="flex items-center px-3 pt-2.5 pb-0 shrink-0 gap-1">
+                <button
+                  onClick={() => setTemplateSubTab('browse')}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${templateSubTab === 'browse' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                >
+                  模板庫
+                </button>
+                <button
+                  onClick={() => setTemplateSubTab('style')}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 flex items-center justify-center gap-1 ${templateSubTab === 'style' ? 'text-teal-600 border-teal-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                >
+                  <Settings2 size={11} /> 預設樣式
+                </button>
               </div>
-              <div className="overflow-y-auto flex-1 p-1.5">
-                {TEMPLATES.filter(t => templateTab === 'all' || t.category === templateTab).map(t => (
-                  <button key={t.id} onClick={() => loadTemplate(t)}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-purple-50 transition-colors">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl shrink-0">{t.icon}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-700 truncate">{t.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{t.description}</p>
-                      </div>
+
+              {templateSubTab === 'browse' ? (
+                <>
+                  <div className="px-3 pt-2 pb-2 border-b border-gray-100 shrink-0">
+                    <div className="flex gap-1 flex-wrap">
+                      {[
+                        { id: 'all', label: '全部', emoji: '📋' },
+                        { id: 'brainstorm', label: '腦暴', emoji: '💡' },
+                        { id: 'retro', label: '回顧', emoji: '🔄' },
+                        { id: 'agile', label: 'Agile', emoji: '🚂' },
+                        { id: 'strategy', label: '策略', emoji: '🎯' },
+                        { id: 'design', label: '設計', emoji: '❤️' },
+                      ].map(tab => (
+                        <button key={tab.id} onClick={() => setTemplateTab(tab.id)}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${templateTab === tab.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                          <span>{tab.emoji}</span>{tab.label}
+                        </button>
+                      ))}
                     </div>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-1.5">
+                    {TEMPLATES.filter(t => templateTab === 'all' || t.category === templateTab).map(t => (
+                      <button key={t.id} onClick={() => loadTemplate(t)}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-purple-50 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl shrink-0">{t.icon}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-gray-700 truncate">{t.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{t.description}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="overflow-y-auto flex-1">
+                  <div className="px-3 pt-2 pb-1">
+                    <p className="text-[10px] text-gray-400 leading-relaxed">以下設定將套用至所有新插入的模板圖形</p>
+                  </div>
+                  <DrawingStylePanel style={drawingStyle} onChange={setDrawingStyle} onReset={resetStyle} />
+                </div>
+              )}
             </div>
           )}
         </div>
