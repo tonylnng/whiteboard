@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Plus, LogOut, Moon, Sun, Grid, Folder, Search, Pencil, Trash2, Copy, Check, X } from 'lucide-react'
+import { Plus, LogOut, Moon, Sun, Grid, Folder, Search, Pencil, Trash2, Copy, Check, X, Shield } from 'lucide-react'
 import NewBoardModal from '../components/board/NewBoardModal'
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
@@ -18,6 +18,18 @@ export default function DashboardPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+
+  // Fetch /users/me to get isAdmin flag
+  const { setAuth } = useAuthStore()
+  useEffect(() => {
+    api.get('/users/me').then(r => {
+      if (r.data?.isAdmin !== undefined) {
+        const token = localStorage.getItem('accessToken') || ''
+        setAuth(token, { ...user, ...r.data })
+      }
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ['boards', selectedFolder, search],
@@ -104,6 +116,12 @@ export default function DashboardPage() {
             className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
           </button>
+          {user?.isAdmin && (
+            <button onClick={() => navigate('/admin')}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-purple-600 hover:bg-purple-50">
+              <Shield size={16} /> Admin Portal
+            </button>
+          )}
           <button onClick={handleLogout}
             className="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 text-red-500 hover:bg-red-50">
             <LogOut size={16} /> Sign Out

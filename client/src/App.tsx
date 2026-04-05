@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import BoardPage from './pages/BoardPage'
 import JoinBoardPage from './pages/JoinBoardPage'
+import AdminPage from './pages/AdminPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuthStore()
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/board/join/:token" element={<JoinBoardPage />} />
         <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/board/:id" element={<BoardRoute />} />
+        <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
