@@ -83,14 +83,20 @@ export default function BoardPage() {
       if (!excalidrawDataRef.current) { setSaveStatus('saved'); return }
       await api.post(`/boards/${id}/snapshot`, { excalidrawSnapshot: excalidrawDataRef.current })
       setSaveStatus('saved')
-    } catch { setSaveStatus('unsaved') }
-    finally { isSavingRef.current = false }
+    } catch (e) {
+      setSaveStatus('unsaved')
+      throw e
+    } finally { isSavingRef.current = false }
   }, [id])
 
   const manualSave = useCallback(async () => {
     clearTimeout(saveTimerRef.current)
-    await doSave()
-    toast.success('已儲存')
+    try {
+      await doSave()
+      toast.success('已儲存')
+    } catch {
+      toast.error('儲存失敗，請重試')
+    }
   }, [doSave])
 
   const saveName = async () => {
