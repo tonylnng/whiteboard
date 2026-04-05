@@ -40,6 +40,12 @@ export default function BoardPage() {
   const maxVotes = sessionState?.voting?.maxVotes || 5
   const myVotesUsed = sessionState?.voting?.userVoteCount?.[user?.id || ''] || 0
   const myVotesRemaining = Math.max(0, maxVotes - myVotesUsed)
+  // Derive which element IDs this user has already voted on
+  const myVotedIds = new Set<string>(
+    Object.entries(sessionState?.voting?.votes || {}).filter(([, voters]) =>
+      Array.isArray(voters) && voters.includes(user?.id || '')
+    ).map(([id]) => id)
+  )
 
   const [showVoteResults, setShowVoteResults] = useState(false)
   const [finalVoteMap, setFinalVoteMap] = useState<Record<string, number>>({})
@@ -236,6 +242,7 @@ export default function BoardPage() {
             votingActive={sessionState?.voting?.active || false}
             onVote={castVote}
             onUnvote={removeVote}
+            myVotedIds={myVotedIds}
           />
         </div>
         {aiOpen && (

@@ -73,12 +73,15 @@ export default function VoteResultsPopup({ excalidrawApi, voteMap, onClose }: Pr
 
       const w = 500, h = data.length * 44 + 100
       const now = Date.now()
+      const groupId = mkId()  // shared group for all inserted elements
       const mkEl = (overrides: any) => ({
         id: mkId(), angle: 0, strokeColor: '#374151', backgroundColor: 'transparent',
         fillStyle: 'hachure' as const, strokeWidth: 1, strokeStyle: 'solid' as const,
         roughness: 0, opacity: 100, seed: Math.floor(Math.random() * 100000),
         versionNonce: Math.floor(Math.random() * 100000), version: 1, isDeleted: false,
-        boundElements: null, updated: now, locked: false, groupIds: [], frameId: null, link: null, ...overrides,
+        boundElements: null, updated: now, locked: false,
+        groupIds: [groupId],  // ← all elements share same group = move together
+        frameId: null, link: null, ...overrides,
       })
 
       const newElements: any[] = []

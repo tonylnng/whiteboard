@@ -596,24 +596,30 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
     toast.success('Spotlight sent to all participants')
   }
 
-  /** Create a new named vote item (sticky with [VOTE:name] baked in) */
+  /** Create a new named vote item — name stored in customData.voteName (hidden from canvas text) */
   const confirmAddVoteItem = () => {
     if (!excalidrawApi) return
     const name = voteItemName.trim() || 'Vote Item'
     const { cx, cy } = getCenter(excalidrawApi)
     const shapeId = mkId(); const textId = mkId(); const now = Date.now()
-    const label = `[VOTE:${name}]`
+    const W = 160, H = 72  // compact card
     const shape = {
-      id: shapeId, type: 'rectangle', x: cx - 110, y: cy - 65, width: 220, height: 130,
+      id: shapeId, type: 'rectangle',
+      x: cx - W / 2, y: cy - H / 2, width: W, height: H,
       angle: 0, strokeColor: '#f59e0b', backgroundColor: '#fef9c3', fillStyle: 'solid' as const,
       strokeWidth: 2, strokeStyle: 'solid' as const, roughness: 0, opacity: 100,
       seed: Math.floor(Math.random() * 100000), versionNonce: Math.floor(Math.random() * 100000),
-      version: 1, isDeleted: false, boundElements: [{ type: 'text', id: textId }],
+      version: 1, isDeleted: false,
+      boundElements: [{ type: 'text', id: textId }],
       updated: now, locked: false, groupIds: [], frameId: null, link: null,
+      customData: { voteName: name },  // ← hidden tag; user edits the visible text freely
     }
     const text = {
-      id: textId, type: 'text', x: cx - 102, y: cy - 57, width: 204, height: 30,
-      angle: 0, text: label, originalText: label, fontSize: 13, fontFamily: 1,
+      id: textId, type: 'text',
+      x: cx - W / 2 + 8, y: cy - H / 2 + 8,
+      width: W - 16, height: 20,
+      angle: 0, text: name, originalText: name,
+      fontSize: 13, fontFamily: 1,
       textAlign: 'center' as const, verticalAlign: 'middle' as const, baseline: 12,
       containerId: shapeId, autoResize: true, lineHeight: 1.35,
       strokeColor: '#92400e', backgroundColor: 'transparent', fillStyle: 'hachure' as const,
@@ -755,21 +761,12 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
                       className={`px-2 py-1 rounded text-xs font-medium ${maxVotes === n ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{n}</button>
                   ))}
                 </div>
-                <div className="border-t border-gray-100 pt-3 mb-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Mark voteable items</p>
-                  <button onClick={markSelectedAsVoteable}
-                    className="w-full py-1.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-lg hover:bg-yellow-200 flex items-center justify-center gap-1">
-                    🗳️ Mark Selected as Voteable
-                  </button>
-                  <button onClick={unmarkSelectedAsVoteable}
-                    className="w-full py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1">
-                    ✕ Remove Vote Tag from Selected
-                  </button>
+                <div className="border-t border-gray-100 pt-3 mb-3">
                   <button onClick={() => setShowAddVoteItem(true)}
-                    className="w-full py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1">
-                    + Create New Vote Item
+                    className="w-full py-1.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-lg hover:bg-yellow-200 flex items-center justify-center gap-1">
+                    + Create Vote Items
                   </button>
-                  <p className="text-[10px] text-gray-400 leading-snug">Only marked items appear during voting. Select any shape then click &ldquo;Mark&rdquo; to make it voteable.</p>
+                  <p className="text-[10px] text-gray-400 leading-snug mt-1.5">Vote items are the options participants vote on during the session.</p>
                 </div>
                 <button onClick={startVoting}
                   className="w-full py-1.5 bg-yellow-500 text-white text-xs font-semibold rounded-lg hover:bg-yellow-600 flex items-center justify-center gap-1">
