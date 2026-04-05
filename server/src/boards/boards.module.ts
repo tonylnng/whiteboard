@@ -5,11 +5,12 @@ import { BoardMember } from './entities/board-member.entity';
 import { BoardsService } from './boards.service';
 import { BoardsController } from './boards.controller';
 import { ShareController } from './share.controller';
+import { SnapshotController } from './snapshot.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Board, BoardMember])],
   providers: [BoardsService],
-  controllers: [BoardsController, ShareController],
+  controllers: [BoardsController, ShareController, SnapshotController],
   exports: [BoardsService],
 })
 export class BoardsModule {}
