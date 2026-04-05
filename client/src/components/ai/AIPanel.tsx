@@ -193,16 +193,16 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
   _aiStyle = aiStyle
 
   const features = [
-    { id: 'stickies', label: '🗒️ 便利貼', desc: '批量生成便利貼到畫布' },
-    { id: 'agent', label: '🤖 Canvas Agent', desc: '用自然語言操作畫布' },
-    { id: 'sidekick', label: '💼 AI 顧問', desc: '向 AI 專家提問' },
+    { id: 'stickies', label: '🗒️ Stickies', desc: 'Generate sticky notes in bulk' },
+    { id: 'agent', label: '🤖 Canvas Agent', desc: 'Control the canvas with natural language' },
+    { id: 'sidekick', label: '💼 AI Advisor', desc: 'Ask an AI expert for advice' },
   ] as const
 
   const getPlaceholder = () => {
     switch (feature) {
-      case 'stickies': return '輸入主題，例如：產品發布計劃、會議議題...'
-      case 'agent': return '例如：\n• 幫我加三張便利貼排成一排\n• 在左上角加標題「會議記錄」\n• 幫我畫一個登入流程'
-      case 'sidekick': return '向 AI 顧問提問，例如：如何提升用戶留存率？'
+      case 'stickies': return 'Enter a topic, e.g. product launch plan, meeting agenda...'
+      case 'agent': return 'e.g.\n• Add 3 sticky notes in a row\n• Add a title "Meeting Notes" in the top left\n• Draw a login flow diagram'
+      case 'sidekick': return 'Ask the AI advisor, e.g. How do I improve user retention?'
     }
   }
 
@@ -220,15 +220,15 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
   }
 
   const run = async () => {
-    if (!input.trim()) { toast.error('請輸入內容'); return }
-    if (!excalidrawApi) { toast.error('畫布未就緒'); return }
+    if (!input.trim()) { toast.error('Please enter some content'); return }
+    if (!excalidrawApi) { toast.error('Canvas not ready'); return }
     setLoading(true)
     setResult('')
 
     try {
       if (feature === 'stickies') {
         const { data } = await api.post('/ai/generate-stickies', { topic: input, count: 6 })
-        if (!data?.length) { toast.error('AI 未能生成，請重試'); return }
+        if (!data?.length) { toast.error('AI could not generate results, please try again'); return }
         const { cx, cy } = getCanvasCenter(excalidrawApi)
         const cols = 3
         const newElements: any[] = []
@@ -239,8 +239,8 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
         }
         excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...newElements] })
         try { excalidrawApi.scrollToContent() } catch {}
-        setResult(`✅ 已生成 ${data.length} 張便利貼`)
-        toast.success(`已在畫布上生成 ${data.length} 張便利貼`)
+        setResult(`✅ Generated ${data.length} sticky notes`)
+        toast.success(`Added ${data.length} sticky notes to canvas`)
 
       } else if (feature === 'agent') {
         const shapes = getShapes()
@@ -258,7 +258,7 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
           const count = executeActions(excalidrawApi, data.actions, () => getCanvasCenter(excalidrawApi))
           if (count > 0) {
             try { excalidrawApi.scrollToContent() } catch {}
-            toast.success(`已執行 ${count} 個操作`)
+            toast.success(`Executed ${count} action${count !== 1 ? 's' : ''}`)
           }
         }
         setInput('')
@@ -271,7 +271,7 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
 
       setInput('')
     } catch (e: any) {
-      toast.error(e.response?.data?.message || '請求失敗，請重試')
+      toast.error(e.response?.data?.message || 'Request failed, please try again')
     } finally {
       setLoading(false)
     }
@@ -283,7 +283,7 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
     const elems = createStickyElements(cx - 150, cy - 100, result.slice(0, 200), '#bfdbfe')
     excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...elems] })
     try { excalidrawApi.scrollToContent() } catch {}
-    toast.success('已加到畫布')
+    toast.success('Added to canvas')
   }
 
   return (
@@ -291,18 +291,18 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
       {/* Feature selector + Style toggle */}
       <div className="p-3 border-b border-gray-100">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">功能</span>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Feature</span>
           <button
             onClick={() => setShowStyle(v => !v)}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors ${showStyle ? 'bg-teal-100 text-teal-700' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
           >
-            <Settings2 size={11} /> 絮製樣式
+            <Settings2 size={11} /> Drawing Style
           </button>
         </div>
         {showStyle ? (
           <div className="-mx-3">
             <div className="px-3 pb-1">
-              <p className="text-[10px] text-gray-400">此設定套用至 AI 生成的所有圖形</p>
+              <p className="text-[10px] text-gray-400">Applies to all AI-generated shapes</p>
             </div>
             <DrawingStylePanel style={aiStyle} onChange={setAiStyle} onReset={resetStyle} />
           </div>
@@ -326,18 +326,18 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
           placeholder={getPlaceholder()} rows={feature === 'agent' ? 4 : 3}
           className="w-full text-sm border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none placeholder-gray-400" />
         <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-400">⌘+Enter 執行</span>
+          <span className="text-xs text-gray-400">⌘+Enter to run</span>
           <button onClick={run} disabled={loading}
             className="px-4 py-1.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-            {loading ? (<><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />處理中</>) : '執行'}
+            {loading ? (<><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Running...</>) : 'Run'}
           </button>
         </div>
       </div>
 
       {feature === 'agent' && chatHistory.length > 0 && (
         <div className="px-3 py-2 bg-teal-50 border-b border-teal-100 flex items-center justify-between">
-          <span className="text-xs text-teal-600 font-medium">對話進行中（{Math.floor(chatHistory.length / 2)} 輪）</span>
-          <button onClick={() => { setChatHistory([]); setResult('') }} className="text-xs text-teal-500 hover:text-teal-700 underline">清除</button>
+          <span className="text-xs text-teal-600 font-medium">Chat active ({Math.floor(chatHistory.length / 2)} turn{Math.floor(chatHistory.length / 2) !== 1 ? 's' : ''})</span>
+          <button onClick={() => { setChatHistory([]); setResult('') }} className="text-xs text-teal-500 hover:text-teal-700 underline">Clear</button>
         </div>
       )}
 
@@ -350,14 +350,14 @@ export default function AIPanel({ excalidrawApi, boardId, onSave }: Props) {
             {feature === 'sidekick' && (
               <button onClick={addToCanvas}
                 className="mt-2 w-full py-1.5 border border-teal-400 text-teal-600 rounded-lg text-xs font-medium hover:bg-teal-50 transition-colors">
-                📌 放到畫布
+                📌 Add to Canvas
               </button>
             )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
             <div className="text-3xl mb-3">{feature === 'stickies' ? '🗒️' : feature === 'agent' ? '🤖' : '💼'}</div>
-            <p className="text-xs text-gray-400">輸入內容後點擊執行</p>
+            <p className="text-xs text-gray-400">Enter content above and click Run</p>
           </div>
         )}
       </div>

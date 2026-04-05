@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export interface DrawingStyle {
   strokeWidth: number       // 1 | 2 | 4
@@ -9,11 +9,12 @@ export interface DrawingStyle {
   opacity: number           // 10-100
 }
 
+// Matches Excalidraw's own defaults
 export const DEFAULT_DRAWING_STYLE: DrawingStyle = {
-  strokeWidth: 1,
+  strokeWidth: 2,
   strokeStyle: 'solid',
-  fillStyle: 'solid',
-  roughness: 0,
+  fillStyle: 'hachure',
+  roughness: 1,
   roundness: 'sharp',
   opacity: 100,
 }

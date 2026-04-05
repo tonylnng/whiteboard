@@ -7,28 +7,28 @@ interface Props {
 }
 
 const STROKE_WIDTHS = [
-  { value: 1, label: '細', icon: '─' },
-  { value: 2, label: '中', icon: '━' },
-  { value: 4, label: '粗', icon: '▬' },
+  { value: 1, label: 'Thin', icon: '─' },
+  { value: 2, label: 'Bold', icon: '━' },
+  { value: 4, label: 'Extra', icon: '▬' },
 ]
 
 const STROKE_STYLES = [
-  { value: 'solid' as const, label: '實線', icon: '─' },
-  { value: 'dashed' as const, label: '虛線', icon: '- -' },
-  { value: 'dotted' as const, label: '點線', icon: '···' },
+  { value: 'solid' as const, label: 'Solid', icon: '─' },
+  { value: 'dashed' as const, label: 'Dashed', icon: '- -' },
+  { value: 'dotted' as const, label: 'Dotted', icon: '···' },
 ]
 
 const FILL_STYLES = [
-  { value: 'solid' as const, label: '填色', icon: '■' },
-  { value: 'hachure' as const, label: '斜線', icon: '▨' },
-  { value: 'cross-hatch' as const, label: '網格', icon: '▤' },
-  { value: 'none' as const, label: '無填色', icon: '□' },
+  { value: 'hachure' as const, label: 'Hachure', icon: '▨' },
+  { value: 'cross-hatch' as const, label: 'Cross', icon: '▤' },
+  { value: 'solid' as const, label: 'Solid', icon: '■' },
+  { value: 'none' as const, label: 'None', icon: '□' },
 ]
 
 const ROUGHNESS = [
-  { value: 0, label: '整齊' },
-  { value: 1, label: '手繪' },
-  { value: 2, label: '潦草' },
+  { value: 0, label: 'Architect' },
+  { value: 1, label: 'Artist' },
+  { value: 2, label: 'Cartoonist' },
 ]
 
 export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
@@ -37,7 +37,7 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
 
       {/* Stroke Width */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">線條粗細</p>
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stroke Width</p>
         <div className="flex gap-1.5">
           {STROKE_WIDTHS.map(opt => (
             <button
@@ -54,7 +54,7 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
 
       {/* Stroke Style */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">線條樣式</p>
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stroke Style</p>
         <div className="flex gap-1.5">
           {STROKE_STYLES.map(opt => (
             <button
@@ -71,7 +71,7 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
 
       {/* Fill Style */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">填充樣式</p>
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Fill</p>
         <div className="grid grid-cols-4 gap-1.5">
           {FILL_STYLES.map(opt => (
             <button
@@ -86,9 +86,9 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
         </div>
       </div>
 
-      {/* Sloppiness / Roughness */}
+      {/* Sloppiness */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">手繪感</p>
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sloppiness</p>
         <div className="flex gap-1.5">
           {ROUGHNESS.map(opt => (
             <button
@@ -104,11 +104,11 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
 
       {/* Edges */}
       <div>
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">邊角</p>
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Edges</p>
         <div className="flex gap-1.5">
           {[
-            { value: 'sharp' as const, label: '直角', icon: '⬛' },
-            { value: 'round' as const, label: '圓角', icon: '🟦' },
+            { value: 'sharp' as const, label: 'Sharp', icon: '⬛' },
+            { value: 'round' as const, label: 'Round', icon: '🟦' },
           ].map(opt => (
             <button
               key={opt.value}
@@ -124,7 +124,7 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
       {/* Opacity */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">透明度</p>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Opacity</p>
           <span className="text-xs font-mono text-gray-600">{style.opacity}%</span>
         </div>
         <input
@@ -141,7 +141,7 @@ export default function DrawingStylePanel({ style, onChange, onReset }: Props) {
           onClick={onReset}
           className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
-          ↺ 重設為預設值
+          ↺ Reset to defaults
         </button>
       </div>
     </div>
