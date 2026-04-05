@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, LabelList } from 'recharts'
 import { X, Download, BarChart2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getVoteName } from './VoteBadgeOverlay'
 
 interface Props {
   excalidrawApi: any | null
@@ -23,12 +24,32 @@ export default function VoteResultsPopup({ excalidrawApi, voteMap, onClose }: Pr
     try {
       const elements = excalidrawApi.getSceneElements() as any[]
       const el = elements.find((e: any) => e.id === elementId)
-      if (!el) return 'Element'
-      const text = el.text || el.label || ''
-      const cleaned = text.replace(/\n/g, ' ').trim()
-      return truncate(cleaned || el.type, 28)
+      if (!el) return 'Vote Item'
+
+      // 1. Check if the element itself has [VOTE:name]
+      const direct = getVoteName(el)
+      if (direct) return truncate(direct, 32)
+
+      // 2. Check bound text children
+      const boundIds: string[] = (el.boundElements || [])
+        .filter((b: any) => b.type === 'text')
+        .map((b: any) => b.id)
+      for (const bid of boundIds) {
+        const child = elements.find((e: any) => e.id === bid && !e.isDeleted)
+        if (child) {
+          const name = getVoteName(child)
+          if (name) return truncate(name, 32)
+          // fallback to raw child text (strip [VOTE] prefix if any)
+          const raw = (child.text || '').replace(/^\[VOTE[^\]]*\]\s*/i, '').replace(/\n/g, ' ').trim()
+          if (raw) return truncate(raw, 32)
+        }
+      }
+
+      // 3. Fallback: element's own text minus [VOTE] tag
+      const raw = (el.text || '').replace(/^\[VOTE[^\]]*\]\s*/i, '').replace(/\n/g, ' ').trim()
+      return truncate(raw || 'Vote Item', 32)
     } catch {
-      return elementId.slice(0, 8)
+      return 'Vote Item'
     }
   }, [excalidrawApi])
 

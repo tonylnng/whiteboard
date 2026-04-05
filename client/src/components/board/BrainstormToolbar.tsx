@@ -572,6 +572,8 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
   const [templateTab, setTemplateTab] = useState<string>('all')
   const [templateSubTab, setTemplateSubTab] = useState<'browse' | 'style'>('browse')
   const [maxVotes, setMaxVotes] = useState(5)
+  const [showAddVoteItem, setShowAddVoteItem] = useState(false)
+  const [voteItemName, setVoteItemName] = useState('')
   const { style: drawingStyle, setStyle: setDrawingStyle, resetStyle } = useDrawingStyle()
 
   // Inject current style into template element factories
@@ -594,19 +596,84 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
     toast.success('Spotlight sent to all participants')
   }
 
-  const addVoteItem = () => {
+  /** Create a new named vote item (sticky with [VOTE:name] baked in) */
+  const confirmAddVoteItem = () => {
     if (!excalidrawApi) return
+    const name = voteItemName.trim() || 'Vote Item'
     const { cx, cy } = getCenter(excalidrawApi)
-    const id = Math.random().toString(36).substr(2, 9)
-    const now = Date.now()
-    const rect = {
-      id, type: 'rectangle', x: cx - 100, y: cy - 60, width: 200, height: 120,
+    const shapeId = mkId(); const textId = mkId(); const now = Date.now()
+    const label = `[VOTE:${name}]`
+    const shape = {
+      id: shapeId, type: 'rectangle', x: cx - 110, y: cy - 65, width: 220, height: 130,
       angle: 0, strokeColor: '#f59e0b', backgroundColor: '#fef9c3', fillStyle: 'solid' as const,
       strokeWidth: 2, strokeStyle: 'solid' as const, roughness: 0, opacity: 100,
       seed: Math.floor(Math.random() * 100000), versionNonce: Math.floor(Math.random() * 100000),
-      version: 1, isDeleted: false, boundElements: null, updated: now, locked: false,
+      version: 1, isDeleted: false, boundElements: [{ type: 'text', id: textId }],
+      updated: now, locked: false, groupIds: [], frameId: null, link: null,
     }
-    excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), rect] })
+    const text = {
+      id: textId, type: 'text', x: cx - 102, y: cy - 57, width: 204, height: 30,
+      angle: 0, text: label, originalText: label, fontSize: 13, fontFamily: 1,
+      textAlign: 'center' as const, verticalAlign: 'middle' as const, baseline: 12,
+      containerId: shapeId, autoResize: true, lineHeight: 1.35,
+      strokeColor: '#92400e', backgroundColor: 'transparent', fillStyle: 'hachure' as const,
+      strokeWidth: 1, strokeStyle: 'solid' as const, roughness: 0, opacity: 100,
+      seed: Math.floor(Math.random() * 100000), versionNonce: Math.floor(Math.random() * 100000),
+      version: 1, isDeleted: false, boundElements: null, updated: now, locked: false,
+      groupIds: [], frameId: null, link: null,
+    }
+    excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), shape, text] })
+    setVoteItemName('')
+    setShowAddVoteItem(false)
+    toast.success(`Vote item "${name}" added`)
+  }
+
+  /** Mark currently selected elements as vote items (injects [VOTE:...] into their text) */
+  const markSelectedAsVoteable = () => {
+    if (!excalidrawApi) return
+    const appState = excalidrawApi.getAppState()
+    const selectedIds: Set<string> = new Set(Object.keys(appState.selectedElementIds || {}))
+    if (selectedIds.size === 0) { toast.error('Select one or more elements first'); return }
+
+    const elements = excalidrawApi.getSceneElements() as any[]
+    let count = 0
+    const updated = elements.map((el: any) => {
+      if (!selectedIds.has(el.id)) return el
+      // Skip if already tagged
+      const raw: string = el.text || ''
+      if (/^\[VOTE/i.test(raw)) return el
+      // Only tag text/container elements
+      if (!['rectangle','ellipse','diamond','text'].includes(el.type)) return el
+      count++
+      const name = raw.replace(/\n/g, ' ').trim().slice(0, 40) || 'Vote Item'
+      const newText = `[VOTE:${name}]`
+      return { ...el, text: newText, originalText: newText, versionNonce: Math.floor(Math.random() * 100000) }
+    })
+    if (count === 0) { toast.error('Selected elements are already tagged or not taggable'); return }
+    excalidrawApi.updateScene({ elements: updated })
+    toast.success(`${count} element${count > 1 ? 's' : ''} marked as voteable`)
+  }
+
+  /** Remove vote tag from selected elements */
+  const unmarkSelectedAsVoteable = () => {
+    if (!excalidrawApi) return
+    const appState = excalidrawApi.getAppState()
+    const selectedIds: Set<string> = new Set(Object.keys(appState.selectedElementIds || {}))
+    if (selectedIds.size === 0) { toast.error('Select elements first'); return }
+
+    const elements = excalidrawApi.getSceneElements() as any[]
+    let count = 0
+    const updated = elements.map((el: any) => {
+      if (!selectedIds.has(el.id)) return el
+      const raw: string = el.text || ''
+      if (!/^\[VOTE/i.test(raw)) return el
+      count++
+      const stripped = raw.replace(/^\[VOTE(?::[^\]]*)?\]\s*/i, '').trim()
+      return { ...el, text: stripped, originalText: stripped, versionNonce: Math.floor(Math.random() * 100000) }
+    })
+    if (count === 0) { toast.error('No voteable elements selected'); return }
+    excalidrawApi.updateScene({ elements: updated })
+    toast.success(`${count} element${count > 1 ? 's' : ''} unmarked`)
   }
 
   const loadTemplate = (template: typeof TEMPLATES[0]) => {
@@ -663,9 +730,14 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
             <Vote size={13} />
             Voting
             <span className="px-1.5 py-0.5 bg-yellow-200 rounded font-bold">{myVotesRemaining} left</span>
-            <button onClick={addVoteItem} className="px-1.5 py-0.5 bg-yellow-300 hover:bg-yellow-400 rounded text-xs text-yellow-900">+ Add</button>
             {isFacilitator && (
-              <button onClick={endVoting} className="ml-1 px-1.5 py-0.5 bg-red-200 hover:bg-red-300 rounded text-xs text-red-700">End</button>
+              <button onClick={() => setShowAddVoteItem(true)}
+                className="px-1.5 py-0.5 bg-yellow-300 hover:bg-yellow-400 rounded text-xs text-yellow-900 font-semibold">
+                + Add Item
+              </button>
+            )}
+            {isFacilitator && (
+              <button onClick={endVoting} className="ml-1 px-1.5 py-0.5 bg-red-200 hover:bg-red-300 rounded text-xs text-red-700 font-semibold">End</button>
             )}
           </div>
         ) : isFacilitator ? (
@@ -675,13 +747,29 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
               <Vote size={13} /> Vote
             </button>
             {showVoting && (
-              <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-48">
-                <p className="text-xs font-semibold text-gray-600 mb-2">Votes per person</p>
+              <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-60">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Votes per person</p>
                 <div className="flex gap-1.5 flex-wrap mb-3">
                   {[3, 5, 8, 10].map(n => (
                     <button key={n} onClick={() => setMaxVotes(n)}
                       className={`px-2 py-1 rounded text-xs font-medium ${maxVotes === n ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{n}</button>
                   ))}
+                </div>
+                <div className="border-t border-gray-100 pt-3 mb-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">Mark voteable items</p>
+                  <button onClick={markSelectedAsVoteable}
+                    className="w-full py-1.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-lg hover:bg-yellow-200 flex items-center justify-center gap-1">
+                    🗳️ Mark Selected as Voteable
+                  </button>
+                  <button onClick={unmarkSelectedAsVoteable}
+                    className="w-full py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1">
+                    ✕ Remove Vote Tag from Selected
+                  </button>
+                  <button onClick={() => setShowAddVoteItem(true)}
+                    className="w-full py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1">
+                    + Create New Vote Item
+                  </button>
+                  <p className="text-[10px] text-gray-400 leading-snug">Only marked items appear during voting. Select any shape then click &ldquo;Mark&rdquo; to make it voteable.</p>
                 </div>
                 <button onClick={startVoting}
                   className="w-full py-1.5 bg-yellow-500 text-white text-xs font-semibold rounded-lg hover:bg-yellow-600 flex items-center justify-center gap-1">
@@ -788,6 +876,34 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
         {!isFacilitator && <span className="text-xs text-gray-400 px-1">👁️ Observer</span>}
       </div>
 
+      {/* Add Vote Item modal */}
+      {showAddVoteItem && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setShowAddVoteItem(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">🗳️ Add Vote Item</h3>
+            <p className="text-xs text-gray-500 mb-4">Creates a named sticky that participants can vote on.</p>
+            <input
+              autoFocus
+              value={voteItemName}
+              onChange={e => setVoteItemName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmAddVoteItem(); if (e.key === 'Escape') setShowAddVoteItem(false) }}
+              placeholder="e.g. Improve onboarding flow"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={confirmAddVoteItem}
+                className="flex-1 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600">
+                Add to Canvas
+              </button>
+              <button onClick={() => setShowAddVoteItem(false)}
+                className="px-4 py-2 border border-gray-300 text-sm text-gray-600 rounded-xl hover:bg-gray-100">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
