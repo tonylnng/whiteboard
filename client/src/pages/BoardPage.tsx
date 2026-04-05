@@ -28,6 +28,7 @@ export default function BoardPage() {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [excalidrawInitialData, setExcalidrawInitialData] = useState<any>(null)
   const excalidrawDataRef = useRef<{ elements: any[]; appState: any; files: any } | null>(null)
+  const sceneLoadedRef = useRef(false)  // prevent double-loading
 
   const saveTimerRef = useRef<any>(null)
   const isSavingRef = useRef(false)
@@ -135,6 +136,27 @@ export default function BoardPage() {
   useEffect(() => {
     return () => { clearTimeout(saveTimerRef.current) }
   }, [])
+
+  // Load saved scene once both the API and snapshot data are ready
+  // Excalidraw only reads initialData on first mount, so we push via updateScene
+  useEffect(() => {
+    if (!excalidrawApi || !excalidrawInitialData || sceneLoadedRef.current) return
+    sceneLoadedRef.current = true
+    try {
+      const { elements, appState, files } = excalidrawInitialData
+      excalidrawApi.updateScene({
+        elements: elements ?? [],
+        appState: { ...(appState ?? {}), collaborators: [] },
+      })
+      if (files && Object.keys(files).length > 0) {
+        excalidrawApi.addFiles(Object.values(files))
+      }
+      // Fit loaded content to viewport
+      setTimeout(() => excalidrawApi.scrollToContent(undefined, { fitToViewport: true }), 80)
+    } catch (e) {
+      console.warn('Failed to restore scene:', e)
+    }
+  }, [excalidrawApi, excalidrawInitialData])
 
   const onlineCount = remoteUsers.length
   const statusColor = saveStatus === 'saved' ? 'text-green-500' : saveStatus === 'saving' ? 'text-yellow-500' : 'text-orange-400'

@@ -753,7 +753,7 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
               <Vote size={13} /> Vote
             </button>
             {showVoting && (
-              <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-60">
+              <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-60">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Votes per person</p>
                 <div className="flex gap-1.5 flex-wrap mb-3">
                   {[3, 5, 8, 10].map(n => (
@@ -784,7 +784,7 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
             <LayoutTemplate size={13} /> Templates
           </button>
           {showTemplates && (
-            <div className="absolute top-10 left-0 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 w-72" style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
               {/* Sub-tab header */}
               <div className="flex items-center px-3 pt-2.5 pb-0 shrink-0 gap-1">
                 <button
