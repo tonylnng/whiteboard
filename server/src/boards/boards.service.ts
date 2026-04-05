@@ -32,6 +32,11 @@ export class BoardsService {
     return qb.getMany();
   }
 
+  /** Internal use only — no auth check. Returns null if not found. */
+  async findOneRaw(boardId: string): Promise<Board | null> {
+    return this.boardRepo.findOne({ where: { id: boardId } });
+  }
+
   async findOne(boardId: string, userId: string): Promise<Board> {
     const board = await this.boardRepo.findOne({
       where: { id: boardId },

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
+import { BoardsService } from '../boards/boards.service';
 
 interface UserInfo {
   id: string;
@@ -36,7 +37,7 @@ interface SessionState {
   voting: VoteState;
   timer: TimerState;
   anonymousMode: boolean;
-  facilitatorId: string | null;
+  facilitatorId: string | null;  // ownerId — set from board.ownerId, never transferred
   spotlight: { x: number; y: number; w: number; h: number } | null;
   cursorsLocked: boolean;
 }
@@ -66,6 +67,8 @@ function defaultSession(): SessionState {
   transports: ['websocket', 'polling'],
 })
 export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(private readonly boardsService: BoardsService) {}
+
   @WebSocketServer()
   server: Server;
 
@@ -88,8 +91,20 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
       const session = this.getSession(boardId);
-      const isFacilitator = !session.facilitatorId;
-      
+
+      // Seed facilitatorId from board.ownerId on first connection to this room
+      if (!session.facilitatorId) {
+        try {
+          const board = await this.boardsService.findOneRaw(boardId);
+          if (board?.ownerId) session.facilitatorId = board.ownerId;
+        } catch {
+          // Board not found or DB error — fall through gracefully
+        }
+      }
+
+      // Only the board owner is the host/facilitator — never transferred
+      const isFacilitator = payload.sub === session.facilitatorId;
+
       const userInfo: UserInfo = {
         id: payload.sub,
         name: payload.name || 'User',
@@ -98,9 +113,7 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
         isFacilitator,
         role: payload.role || (payload.isGuest ? 'viewer' : 'editor'),
       };
-      
-      if (isFacilitator) session.facilitatorId = payload.sub;
-      
+
       this.users.set(client.id, userInfo);
       client.join(boardId);
 
@@ -121,7 +134,7 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.emit('store:patch', { socketId: 'server', patch: { elements: cachedElements } });
       }
 
-      console.log(`[Collab] ${userInfo.name} joined ${boardId}${isFacilitator ? ' (facilitator)' : ''} role=${userInfo.role}`);
+      console.log(`[Collab] ${userInfo.name} joined ${boardId}${isFacilitator ? ' (host)' : ''} role=${userInfo.role}`);
     } catch (e) {
       client.disconnect();
     }
@@ -132,24 +145,20 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (user) {
       client.to(user.boardId).emit('user:left', { socketId: client.id });
       const session = this.getSession(user.boardId);
-      if (session.facilitatorId === user.id) {
-        // Transfer facilitator to next user
-        let transferred = false;
-        this.users.forEach((u, sid) => {
-          if (!transferred && u.boardId === user.boardId && sid !== client.id) {
-            u.isFacilitator = true;
-            session.facilitatorId = u.id;
-            this.server.to(user.boardId).emit('facilitator:changed', { userId: u.id, name: u.name });
-            transferred = true;
-          }
-        });
-        if (!transferred) {
-          session.facilitatorId = null;
-          this.sessions.delete(user.boardId);
-          // Clear element cache when room is empty
-          this.boardElements.delete(user.boardId);
-        }
+
+      // Check if the room is now empty
+      let remainingInRoom = 0;
+      this.users.forEach((u, sid) => {
+        if (sid !== client.id && u.boardId === user.boardId) remainingInRoom++;
+      });
+
+      if (remainingInRoom === 0) {
+        // Room empty — clean up session and element cache
+        this.sessions.delete(user.boardId);
+        this.boardElements.delete(user.boardId);
       }
+      // No facilitator transfer — host is always the board owner
+
       this.users.delete(client.id);
     }
   }
@@ -219,7 +228,7 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const used = session.voting.userVoteCount[user.id] || 0;
     if (used >= session.voting.maxVotes) {
-      client.emit('vote:error', { message: `已用完所有 ${session.voting.maxVotes} 票` });
+      client.emit('vote:error', { message: `You have used all ${session.voting.maxVotes} votes` });
       return;
     }
 

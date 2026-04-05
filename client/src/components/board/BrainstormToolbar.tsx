@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Socket } from 'socket.io-client'
 import { toast } from 'sonner'
 import {
-  Vote, Timer, LayoutTemplate, EyeOff, Brain,
+  Vote, Timer, LayoutTemplate, EyeOff,
   Play, Square, Lock, Unlock, Crosshair, X, Settings2
 } from 'lucide-react'
 import { useDrawingStyle, applyStyle } from '../../hooks/useDrawingStyle'
@@ -63,6 +63,9 @@ let _currentStyle: ReturnType<typeof import('../../hooks/useDrawingStyle').useDr
  * mkShape — a SINGLE shape element with text baked in via containerId binding.
  * This produces one movable unit instead of a separate rect + text element.
  */
+// Current group ID injected by loadTemplate — all elements in one template call share it
+let _currentGroupId: string | null = null
+
 function mkShape(
   type: 'rectangle' | 'ellipse' | 'diamond',
   x: number, y: number, w: number, h: number,
@@ -74,6 +77,7 @@ function mkShape(
   const s = _currentStyle
   const fillStyle = s?.fillStyle ?? 'hachure'
   const effectiveBg = fillStyle === 'none' ? 'transparent' : bg
+  const gid = _currentGroupId ? [_currentGroupId] : []
 
   const shape = mkBase({
     ...(s ? applyStyle(s) : {}),
@@ -83,6 +87,7 @@ function mkShape(
     fillStyle,
     strokeColor: stroke || '#374151',
     boundElements: [{ type: 'text', id: textId }],
+    groupIds: gid,
   })
 
   const safeText = label ?? ''
@@ -99,6 +104,7 @@ function mkShape(
     containerId: shapeId, autoResize: true, lineHeight: 1.35,
     strokeColor: textColor, backgroundColor: 'transparent', fillStyle: 'hachure',
     strokeWidth: 1, strokeStyle: 'solid', roughness: 0, opacity: 100,
+    groupIds: gid,
   })
 
   return [shape, text]
@@ -115,6 +121,7 @@ function mkText(x: number, y: number, w: number, text: string, fontSize = 14, co
     containerId: null, autoResize: true, lineHeight: 1.25,
     strokeColor: color, backgroundColor: 'transparent', fillStyle: 'hachure',
     strokeWidth: 1, strokeStyle: 'solid', roughness: 0, opacity: 100,
+    groupIds: _currentGroupId ? [_currentGroupId] : [],
   })
 }
 
@@ -128,6 +135,7 @@ function mkRect(x: number, y: number, w: number, h: number, bg: string, stroke?:
   const s = _currentStyle
   const fillStyle = s?.fillStyle ?? 'hachure'
   return mkBase({
+    groupIds: _currentGroupId ? [_currentGroupId] : [],
     ...(s ? applyStyle(s) : {}),
     type: 'rectangle', x, y, width: w, height: h,
     backgroundColor: fillStyle === 'none' ? 'transparent' : bg,
@@ -564,9 +572,6 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
   const [templateTab, setTemplateTab] = useState<string>('all')
   const [templateSubTab, setTemplateSubTab] = useState<'browse' | 'style'>('browse')
   const [maxVotes, setMaxVotes] = useState(5)
-  const [showAI, setShowAI] = useState(false)
-  const [aiLoading, setAILoading] = useState(false)
-  const [aiResult, setAIResult] = useState('')
   const { style: drawingStyle, setStyle: setDrawingStyle, resetStyle } = useDrawingStyle()
 
   // Inject current style into template element factories
@@ -607,45 +612,16 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
   const loadTemplate = (template: typeof TEMPLATES[0]) => {
     if (!excalidrawApi) return
     _currentStyle = drawingStyle  // ensure latest style is applied
+    _currentGroupId = mkId()     // all elements in this template share one group
     const newElements = template.create(excalidrawApi)
+    _currentGroupId = null       // reset after template is built
     excalidrawApi.updateScene({ elements: [...excalidrawApi.getSceneElements(), ...newElements] })
     setTimeout(() => { try { excalidrawApi.scrollToContent() } catch {} }, 100)
     setShowTemplates(false)
     toast.success(`Template loaded: ${template.name}`)
   }
 
-  const runAIInsights = async () => {
-    if (!excalidrawApi) return
-    setAILoading(true)
-    setShowAI(true)
-    try {
-      const elements = excalidrawApi.getSceneElements() as any[]
-      const shapes = elements
-        .filter((e: any) => !e.isDeleted && e.text)
-        .map((e: any) => ({ type: e.type, text: e.text }))
 
-      if (!shapes.length) {
-        setAIResult('No text found on the canvas. Add some stickies or text elements first.')
-        setAILoading(false)
-        return
-      }
-
-      const response = await fetch('/api/ai/board-summary', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken') || sessionStorage.getItem('guestToken') || ''}`,
-        },
-        body: JSON.stringify({ elements: shapes, format: 'brainstorm-insights' }),
-      })
-      const data = await response.json()
-      setAIResult(data.content || data.message || JSON.stringify(data))
-    } catch {
-      setAIResult('Analysis failed. Please try again.')
-    } finally {
-      setAILoading(false)
-    }
-  }
 
   return (
     <>
@@ -794,12 +770,6 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
           </button>
         )}
 
-        {/* AI Insights */}
-        <button onClick={runAIInsights}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg border border-gray-200 transition-colors">
-          <Brain size={13} /> AI Insights
-        </button>
-
         {/* Facilitator controls */}
         {isFacilitator && (
           <>
@@ -818,27 +788,6 @@ export default function BrainstormToolbar({ excalidrawApi, socket, isFacilitator
         {!isFacilitator && <span className="text-xs text-gray-400 px-1">👁️ Observer</span>}
       </div>
 
-      {/* AI Insights Modal */}
-      {showAI && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Brain size={16} className="text-teal-600" /> AI Board Analysis</h3>
-              <button onClick={() => setShowAI(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} className="text-gray-500" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {aiLoading ? (
-                <div className="flex flex-col items-center justify-center h-40 gap-3">
-                  <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-gray-500">Analysing canvas content...</p>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{aiResult}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }
